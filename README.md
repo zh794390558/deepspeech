@@ -26,8 +26,8 @@
 To avoid the trouble of environment setup, [running in Docker container](#running-in-docker-container) is highly recommended. Otherwise follow the guidelines below to install the dependencies manually.
 
 ### Prerequisites
-- Python >= 3.6
-- PaddlePaddle 1.8.0 or later (please refer to the [Installation Guide](https://www.paddlepaddle.org.cn/documentation/docs/en/beginners_guide/index_en.html))
+- Python >= 3.7
+- PaddlePaddle 1.8.5 (please refer to the [Installation Guide](https://www.paddlepaddle.org.cn/documentation/docs/en/beginners_guide/index_en.html))
 
 ### Setup
 - Make sure these libraries or tools installed: `pkg-config`, `flac`, `ogg`, `vorbis`, `boost` and `swig`, e.g. installing them via `apt-get`:
@@ -54,7 +54,15 @@ make install
 ```bash
 git clone https://github.com/PaddlePaddle/DeepSpeech.git
 cd DeepSpeech
-sh setup.sh
+pushd tools; make; popd
+source tools/venv/bin/activate
+bash setup.sh
+```
+
+- Source venv before do experiment.
+
+```bash
+source tools/venv/bin/activate
 ```
 
 ### Running in Docker Container
