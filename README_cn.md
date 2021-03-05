@@ -24,8 +24,8 @@
 为了避免环境配置问题，强烈建议在[Docker容器上运行](#在Docker容器上运行)，否则请按照下面的指南安装依赖项。
 
 ### 前提
-- Python >= 3.6
-- PaddlePaddle 1.8.0 版本及以上（请参考[安装指南](https://www.paddlepaddle.org.cn/install/quick)）
+- Python >= 3.7
+- PaddlePaddle 1.8.5 版本及以上（请参考[安装指南](https://www.paddlepaddle.org.cn/install/quick)）
 
 ### 安装
 - 请确保以下库或工具已安装完毕：`pkg-config`, `flac`, `ogg`, `vorbis`, `boost` 和 `swig`, 如可以通过`apt-get`安装：
@@ -52,8 +52,17 @@ make install
 ```bash
 git clone https://github.com/PaddlePaddle/DeepSpeech.git
 cd DeepSpeech
+pushd tools; make; popd
+source tools/venv/bin/activate
 sh setup.sh
 ```
+
+- Source venv before do experiment.
+
+```bash
+source tools/venv/bin/activate
+```
+
 
 ### 在Docker容器上运行
 
@@ -85,7 +94,7 @@ sudo nvidia-docker run -it -v $(pwd)/DeepSpeech:/DeepSpeech hub.baidubce.com/pad
 
 例如 CUDA 10.1, CuDNN7.5:
 ```bash
-python3 -m pip install paddlepaddle-gpu==1.8.0.post107
+python3 -m pip install paddlepaddle-gpu==1.8.5.post107
 ```
 
 ## 开始
