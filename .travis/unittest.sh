@@ -24,6 +24,10 @@ unittest(){
 trap 'abort' 0
 set -e
 
+cd tools; make; cd - 
+. tools/venv/bin/activate
+pip3 install pytest
+
 unittest .
 
 trap : 0
