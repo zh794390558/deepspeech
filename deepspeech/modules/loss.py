@@ -136,7 +136,7 @@ class LabelSmoothingLoss(nn.Layer):
 
         #TODO(Hui Zhang): sum not support bool type
         #total = len(target) - int(ignore.sum())
-        total = len(target) - int(ignore.type_as(target).sum())
+        total = len(target) - int(ignore.astype(target.dtype).sum())
         denom = total if self.normalize_length else B
         #numer = (kl * (1 - ignore)).sum()
         numer = kl.masked_fill(ignore.unsqueeze(1), 0).sum()
