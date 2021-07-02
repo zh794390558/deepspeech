@@ -65,11 +65,11 @@ def pad_sequence(sequences: List[paddle.Tensor],
 
     # assuming trailing dimensions and type of all the Tensors
     # in sequences are same and fetching those from sequences[0]
-    max_size = sequences[0].size()
+    max_size = sequences[0].shape
     # (TODO Hui Zhang): slice not supprot `end==start`
     # trailing_dims = max_size[1:]
     trailing_dims = max_size[1:] if max_size.ndim >= 2 else ()
-    max_len = max([s.size(0) for s in sequences])
+    max_len = max([s.shape[0] for s in sequences])
     if batch_first:
         out_dims = (len(sequences), max_len) + trailing_dims
     else:
@@ -77,7 +77,7 @@ def pad_sequence(sequences: List[paddle.Tensor],
 
     out_tensor = sequences[0].new_full(out_dims, padding_value)
     for i, tensor in enumerate(sequences):
-        length = tensor.size(0)
+        length = tensor.shape[0]
         # use index notation to prevent duplicate references to the tensor
         if batch_first:
             out_tensor[i, :length, ...] = tensor
@@ -125,7 +125,7 @@ def add_sos_eos(ys_pad: paddle.Tensor, sos: int, eos: int,
     #ys_in = [paddle.cat([_sos, y], dim=0) for y in ys]
     #ys_out = [paddle.cat([y, _eos], dim=0) for y in ys]
     #return pad_sequence(ys_in, padding_value=eos), pad_sequence(ys_out, padding_value=ignore_id)
-    B = ys_pad.size(0)
+    B = ys_pad.shape[0]
     _sos = paddle.ones([B, 1], dtype=ys_pad.dtype) * sos
     _eos = paddle.ones([B, 1], dtype=ys_pad.dtype) * eos
     ys_in = paddle.cat([_sos, ys_pad], dim=1)
@@ -152,7 +152,7 @@ def th_accuracy(pad_outputs: paddle.Tensor,
         float: Accuracy value (0.0 - 1.0).
     """
     pad_pred = pad_outputs.view(
-        pad_targets.size(0), pad_targets.size(1), pad_outputs.size(1)).argmax(2)
+        pad_targets.shape[0], pad_targets.size(1), pad_outputs.size(1)).argmax(2)
     mask = pad_targets != ignore_label
     #TODO(Hui Zhang): sum not support bool type
     # numerator = paddle.sum(

@@ -532,7 +532,7 @@ class U2Tester(U2Trainer):
                 # 1. Encoder
                 encoder_out, encoder_mask = self.model._forward_encoder(
                     feat, feats_length)  # (B, maxlen, encoder_dim)
-                maxlen = encoder_out.size(1)
+                maxlen = encoder_out.shape[1]
                 ctc_probs = self.model.ctc.log_softmax(
                     encoder_out)  # (1, maxlen, vocab_size)
 
@@ -598,10 +598,20 @@ class U2Tester(U2Trainer):
 
     def export(self):
         infer_model, input_spec = self.load_inferspec()
-        assert isinstance(input_spec, list), type(input_spec)
+        # assert isinstance(input_spec, list), type(input_spec)
         infer_model.eval()
-        static_model = paddle.jit.to_static(infer_model, input_spec=input_spec)
-        logger.info(f"Export code: {static_model.forward.code}")
+        #static_model = paddle.jit.to_static(infer_model., input_spec=input_spec)
+        
+        static_model = paddle.jit.to_static(
+            infer_model.forward_attention_decoder, 
+            input_spec=[
+             paddle.static.InputSpec(shape=[1, None],dtype='int32'),
+             paddle.static.InputSpec(shape=[1],dtype='int32'),
+             paddle.static.InputSpec(shape=[1, None, 256],dtype='int32'),
+            ]
+        )
+        logger.info(f"Export code: {static_model}")
+        
         paddle.jit.save(static_model, self.args.export_path)
 
     def run_export(self):

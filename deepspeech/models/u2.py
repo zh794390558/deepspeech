@@ -299,8 +299,8 @@ class U2BaseModel(nn.Module):
             speech, speech_lengths, decoding_chunk_size,
             num_decoding_left_chunks,
             simulate_streaming)  # (B, maxlen, encoder_dim)
-        maxlen = encoder_out.size(1)
-        encoder_dim = encoder_out.size(2)
+        maxlen = encoder_out.shape[1]
+        encoder_dim = encoder_out.shape[2]
         running_size = batch_size * beam_size
         encoder_out = encoder_out.unsqueeze(1).repeat(1, beam_size, 1, 1).view(
             running_size, maxlen, encoder_dim)  # (B*N, maxlen, encoder_dim)
@@ -405,7 +405,7 @@ class U2BaseModel(nn.Module):
         encoder_out, encoder_mask = self._forward_encoder(
             speech, speech_lengths, decoding_chunk_size,
             num_decoding_left_chunks, simulate_streaming)
-        maxlen = encoder_out.size(1)
+        maxlen = encoder_out.shape[1]
         # (TODO Hui Zhang): bool no support reduce_sum
         # encoder_out_lens = encoder_mask.squeeze(1).sum(1)
         encoder_out_lens = encoder_mask.squeeze(1).astype(paddle.int).sum(1)
@@ -455,7 +455,7 @@ class U2BaseModel(nn.Module):
             speech, speech_lengths, decoding_chunk_size,
             num_decoding_left_chunks,
             simulate_streaming)  # (B, maxlen, encoder_dim)
-        maxlen = encoder_out.size(1)
+        maxlen = encoder_out.shape[1]
         ctc_probs = self.ctc.log_softmax(encoder_out)  # (1, maxlen, vocab_size)
         ctc_probs = ctc_probs.squeeze(0)
         # cur_hyps: (prefix, (blank_ending_score, none_blank_ending_score))
@@ -578,7 +578,7 @@ class U2BaseModel(nn.Module):
         hyps_lens = hyps_lens + 1  # Add <sos> at begining
         encoder_out = encoder_out.repeat(beam_size, 1, 1)
         encoder_mask = paddle.ones(
-            (beam_size, 1, encoder_out.size(1)), dtype=paddle.bool)
+            (beam_size, 1, encoder_out.shape[1]), dtype=paddle.bool)
         decoder_out, _ = self.decoder(
             encoder_out, encoder_mask, hyps_pad,
             hyps_lens)  # (beam_size, max_hyps_len, vocab_size)
@@ -624,7 +624,7 @@ class U2BaseModel(nn.Module):
         """
         return self.eos
 
-    @jit.export
+    # @jit.export
     def forward_encoder_chunk(
             self,
             xs: paddle.Tensor,
@@ -654,9 +654,7 @@ class U2BaseModel(nn.Module):
             xs, offset, required_cache_size, subsampling_cache,
             elayers_output_cache, conformer_cnn_cache)
 
-    # @jit.export([
-    #         paddle.static.InputSpec(shape=[1, None, feat_dim],dtype='float32'),  # audio feat, [B,T,D]
-    #     ])
+    # @jit.export
     def ctc_activation(self, xs: paddle.Tensor) -> paddle.Tensor:
         """ Export interface for c++ call, apply linear transform and log
             softmax before ctc
@@ -667,7 +665,7 @@ class U2BaseModel(nn.Module):
         """
         return self.ctc.log_softmax(xs)
 
-    @jit.export
+    # @jit.export
     def forward_attention_decoder(
             self,
             hyps: paddle.Tensor,
@@ -683,13 +681,14 @@ class U2BaseModel(nn.Module):
         Returns:
             paddle.Tensor: decoder output, (B, L)
         """
-        assert encoder_out.size(0) == 1
-        num_hyps = hyps.size(0)
-        assert hyps_lens.size(0) == num_hyps
-        encoder_out = encoder_out.repeat(num_hyps, 1, 1)
+        assert encoder_out.shape[0] == 1
+        num_hyps = hyps.shape[0]
+        assert hyps_lens.shape[0] == num_hyps
+        # encoder_out = encoder_out.repeat(num_hyps, 1, 1)
+        encoder_out = encoder_out.tile([num_hyps, 1, 1])
         # (B, 1, T)
         encoder_mask = paddle.ones(
-            [num_hyps, 1, encoder_out.size(1)], dtype=paddle.bool)
+            [num_hyps, 1, encoder_out.shape[1]], dtype=paddle.bool)
         # (num_hyps, max_hyps_len, vocab_size)
         decoder_out, _ = self.decoder(encoder_out, encoder_mask, hyps,
                                       hyps_lens)
@@ -744,7 +743,7 @@ class U2BaseModel(nn.Module):
         Returns:
             List[List[int]]: transcripts.
         """
-        batch_size = feats.size(0)
+        batch_size = feats.shape[0]
         if decoding_method in ['ctc_prefix_beam_search',
                                'attention_rescoring'] and batch_size > 1:
             logger.fatal(
@@ -772,7 +771,7 @@ class U2BaseModel(nn.Module):
         # result in List[int], change it to List[List[int]] for compatible
         # with other batch decoding mode
         elif decoding_method == 'ctc_prefix_beam_search':
-            assert feats.size(0) == 1
+            assert feats.shape[0] == 1
             hyp = self.ctc_prefix_beam_search(
                 feats,
                 feats_lengths,
@@ -782,7 +781,7 @@ class U2BaseModel(nn.Module):
                 simulate_streaming=simulate_streaming)
             hyps = [hyp]
         elif decoding_method == 'attention_rescoring':
-            assert feats.size(0) == 1
+            assert feats.shape[0] == 1
             hyp = self.attention_rescoring(
                 feats,
                 feats_lengths,
@@ -922,7 +921,7 @@ class U2InferModel(U2Model):
         Returns:
             List[List[int]]: best path result
         """
-        return self.ctc_greedy_search(
+        return self.attention_rescoring(
             feats,
             feats_lengths,
             decoding_chunk_size=decoding_chunk_size,
