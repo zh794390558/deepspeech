@@ -185,3 +185,45 @@ class TransformerDecoder(nn.Module):
             y = paddle.log_softmax(self.output_layer(y), axis=-1)
 
         return y, new_cache
+
+    def export(
+            self,
+            memory: paddle.Tensor,
+            memory_mask: paddle.Tensor,
+            ys_in_pad: paddle.Tensor,
+            ys_in_mask: paddle.Tensor, ) -> Tuple[paddle.Tensor, paddle.Tensor]:
+        """Forward decoder.
+        Args:
+            memory: encoded memory, float32  (batch, maxlen_in, feat)
+            memory_mask: encoder memory mask, (batch, 1, maxlen_in)
+            ys_in_pad: padded input token ids, int64 (batch, maxlen_out)
+            ys_in_mask: input mask of this batch (batch, maxlen_out)
+        Returns:
+            (tuple): tuple containing:
+                x: decoded token score before softmax (batch, maxlen_out, vocab_size)
+                    if use_output_layer is True,
+                olens: (batch, )
+        """
+        tgt = ys_in_pad
+        # tgt_mask: (B, 1, L)
+        tgt_mask = ys_in_mask.unsqueeze(1)
+        # m: (1, L, L)
+        m = subsequent_mask(tgt_mask.shape[-1]).unsqueeze(0)
+        # tgt_mask: (B, L, L)
+        # TODO(Hui Zhang): not support & for tensor
+        # tgt_mask = tgt_mask & m
+        tgt_mask = tgt_mask.logical_and(m)
+
+        x, _ = self.embed(tgt)
+        for layer in self.decoders:
+            x, tgt_mask, memory, memory_mask = layer(x, tgt_mask, memory,
+                                                     memory_mask)
+        if self.normalize_before:
+            x = self.after_norm(x)
+        if self.use_output_layer:
+            x = self.output_layer(x)
+
+        # TODO(Hui Zhang): reduce_sum not support bool type
+        # olens = tgt_mask.sum(1)
+        olens = tgt_mask.astype(paddle.int).sum(1)
+        return x, olens

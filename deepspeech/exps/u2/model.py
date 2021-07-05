@@ -610,10 +610,11 @@ class U2Tester(U2Trainer):
             input_spec=[
                 paddle.static.InputSpec(
                     shape=[1, decoder_max_time], dtype='int32'),  # tgt
-                paddle.static.InputSpec(shape=[1], dtype='int32'),  # tgt_len
+                paddle.static.InputSpec(
+                    shape=[1, decoder_max_time], dtype='bool'),  # tgt_mask
                 paddle.static.InputSpec(
                     shape=[1, encoder_max_time, encoder_model_size],
-                    dtype='int32'),  # encoder_out
+                    dtype='float32'),  # encoder_out
             ])
         logger.info(f"Export code: {static_model}")
 

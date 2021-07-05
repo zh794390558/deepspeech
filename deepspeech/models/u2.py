@@ -927,3 +927,32 @@ class U2InferModel(U2Model):
             decoding_chunk_size=decoding_chunk_size,
             num_decoding_left_chunks=num_decoding_left_chunks,
             simulate_streaming=simulate_streaming)
+
+    def forward_attention_decoder(
+            self,
+            hyps: paddle.Tensor,
+            hyps_masks: paddle.Tensor,
+            encoder_out: paddle.Tensor, ) -> paddle.Tensor:
+        """ Export interface for c++ call, forward decoder with multiple
+            hypothesis from ctc prefix beam search and one encoder output
+        Args:
+            hyps (paddle.Tensor): hyps from ctc prefix beam search, already
+                pad sos at the begining, (B, U)
+            hyps_masks (paddle.Tensor): length of each hyp in hyps, (B, U)
+            encoder_out (paddle.Tensor): corresponding encoder output, (B=1, T, D)
+        Returns:
+            paddle.Tensor: decoder output, (B, V)
+        """
+        assert encoder_out.shape[0] == 1
+        num_hyps = hyps.shape[0]
+        assert hyps_masks.shape[0] == num_hyps
+        # encoder_out = encoder_out.repeat(num_hyps, 1, 1)
+        encoder_out = encoder_out.tile([num_hyps, 1, 1])
+        # (B, 1, T)
+        encoder_mask = paddle.ones(
+            [num_hyps, 1, encoder_out.shape[1]], dtype=paddle.bool)
+        # (num_hyps, max_hyps_len, vocab_size)
+        decoder_out, _ = self.decoder.export(encoder_out, encoder_mask, hyps,
+                                             hyps_masks)
+        decoder_out = paddle.nn.functional.log_softmax(decoder_out, dim=-1)
+        return decoder_out
