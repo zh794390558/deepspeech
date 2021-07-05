@@ -120,7 +120,7 @@ class TransformerDecoder(nn.Module):
         """
         tgt = ys_in_pad
         # tgt_mask: (B, 1, L)
-        tgt_mask = (make_non_pad_mask(ys_in_lens).unsqueeze(1))
+        tgt_mask = make_non_pad_mask(ys_in_lens).unsqueeze(1)
         # m: (1, L, L)
         m = subsequent_mask(tgt_mask.shape[-1]).unsqueeze(0)
         # tgt_mask: (B, L, L)
@@ -164,19 +164,24 @@ class TransformerDecoder(nn.Module):
                 y.shape` is (batch, token)
         """
         x, _ = self.embed(tgt)
+
         new_cache = []
         for i, decoder in enumerate(self.decoders):
             if cache is None:
                 c = None
             else:
                 c = cache[i]
+
             x, tgt_mask, memory, memory_mask = decoder(
                 x, tgt_mask, memory, memory_mask, cache=c)
             new_cache.append(x)
+
         if self.normalize_before:
             y = self.after_norm(x[:, -1])
         else:
             y = x[:, -1]
+
         if self.use_output_layer:
             y = paddle.log_softmax(self.output_layer(y), axis=-1)
+
         return y, new_cache

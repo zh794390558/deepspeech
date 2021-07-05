@@ -601,17 +601,22 @@ class U2Tester(U2Trainer):
         # assert isinstance(input_spec, list), type(input_spec)
         infer_model.eval()
         #static_model = paddle.jit.to_static(infer_model., input_spec=input_spec)
-        
+
+        decoder_max_time = 100
+        encoder_max_time = None
+        encoder_model_size = 256
         static_model = paddle.jit.to_static(
-            infer_model.forward_attention_decoder, 
+            infer_model.forward_attention_decoder,
             input_spec=[
-             paddle.static.InputSpec(shape=[1, None],dtype='int32'),
-             paddle.static.InputSpec(shape=[1],dtype='int32'),
-             paddle.static.InputSpec(shape=[1, None, 256],dtype='int32'),
-            ]
-        )
+                paddle.static.InputSpec(
+                    shape=[1, decoder_max_time], dtype='int32'),  # tgt
+                paddle.static.InputSpec(shape=[1], dtype='int32'),  # tgt_len
+                paddle.static.InputSpec(
+                    shape=[1, encoder_max_time, encoder_model_size],
+                    dtype='int32'),  # encoder_out
+            ])
         logger.info(f"Export code: {static_model}")
-        
+
         paddle.jit.save(static_model, self.args.export_path)
 
     def run_export(self):
