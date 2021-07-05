@@ -175,7 +175,8 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
             (x.shape[0], x.shape[1], x.shape[2], 1), dtype=x.dtype)
         x_padded = paddle.cat([zero_pad, x], dim=-1)
 
-        x_padded = x_padded.view(x.shape[0], x.shape[1], x.shape[3] + 1, x.shape[2])
+        x_padded = x_padded.view(x.shape[0], x.shape[1], x.shape[3] + 1,
+                                 x.shape[2])
         x = x_padded[:, :, 1:].view_as(x)  # [B, H, T1, T1]
 
         if zero_triu:

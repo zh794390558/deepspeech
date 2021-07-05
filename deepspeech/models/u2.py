@@ -24,7 +24,6 @@ from typing import Optional
 from typing import Tuple
 
 import paddle
-from paddle import jit
 from paddle import nn
 from yacs.config import CfgNode
 
@@ -48,6 +47,7 @@ from deepspeech.utils.tensor_utils import add_sos_eos
 from deepspeech.utils.tensor_utils import pad_sequence
 from deepspeech.utils.tensor_utils import th_accuracy
 from deepspeech.utils.utility import log_add
+# from paddle import jit
 
 __all__ = ["U2Model", "U2InferModel"]
 

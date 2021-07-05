@@ -16,8 +16,8 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Union
 from typing import Text
+from typing import Union
 
 import paddle
 from paddle import distributed as dist
@@ -72,13 +72,13 @@ class Checkpoint():
 
         if isinstance(tag_or_iteration, int):
             self._save_checkpoint_record(checkpoint_dir, tag_or_iteration)
-            
+
     def load_parameters(self,
-                         model,
-                         optimizer=None,
-                         checkpoint_dir=None,
-                         checkpoint_path=None,
-                         record_file="checkpoint_latest"):
+                        model,
+                        optimizer=None,
+                        checkpoint_dir=None,
+                        checkpoint_path=None,
+                        record_file="checkpoint_latest"):
         """Load a last model checkpoint from disk. 
         Args:
             model (Layer): model to load parameters.
