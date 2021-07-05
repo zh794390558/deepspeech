@@ -954,5 +954,5 @@ class U2InferModel(U2Model):
         # (num_hyps, max_hyps_len, vocab_size)
         decoder_out, _ = self.decoder.export(encoder_out, encoder_mask, hyps,
                                              hyps_masks)
-        decoder_out = paddle.nn.functional.log_softmax(decoder_out, dim=-1)
+        decoder_out = paddle.nn.functional.log_softmax(decoder_out, axis=-1)
         return decoder_out

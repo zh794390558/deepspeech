@@ -24,7 +24,7 @@ def frame(x: Tensor,
     hop_length : int
         Number of samples shifted between ajancent frames.
     clip : bool, optional
-        Whether to clip audio that does not fit into the last frame, by 
+        Whether to clip audio that does not fit into the last frame, by
         default True
 
     Returns
@@ -53,16 +53,16 @@ def frame(x: Tensor,
 
 
 class STFT(nn.Layer):
-    """A module for computing stft transformation in a differentiable way. 
-    
+    """A module for computing stft transformation in a differentiable way.
+
     Parameters
     ------------
     n_fft : int
         Number of samples in a frame.
-        
+
     hop_length : int
         Number of samples shifted between adjacent frames.
-        
+
     win_length : int
         Length of the window.
 
@@ -109,8 +109,7 @@ class STFT(nn.Layer):
 
         # (2 * n_bins, 1, kernel_size) # (C_out, C_in, kernel_size)
         w = np.expand_dims(w, 1)
-        weight = paddle.cast(paddle.to_tensor(w), paddle.get_default_dtype())
-        self.register_buffer("weight", weight)
+        self.weight = paddle.cast(paddle.to_tensor(w), paddle.get_default_dtype())
 
     def forward(self, x: Tensor, num_samples: Tensor) -> Tuple[Tensor, Tensor]:
         """Compute the stft transform.
@@ -118,7 +117,7 @@ class STFT(nn.Layer):
         ------------
         x : Tensor [shape=(B, T)]
             The input waveform.
-        num_samples : Tensor 
+        num_samples : Tensor
             Number of samples of each waveform.
         Returns
         ------------

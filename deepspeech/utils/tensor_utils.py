@@ -13,8 +13,8 @@
 # limitations under the License.
 """Unility functions for Transformer."""
 from typing import List
-from typing import Tuple
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import paddle
@@ -25,6 +25,7 @@ __all__ = ["masked_fill", "pad_sequence", "add_sos_eos", "th_accuracy"]
 
 logger = Log(__name__).getlog()
 
+
 def is_broadcastable(shp1, shp2):
     for a, b in zip(shp1[::-1], shp2[::-1]):
         if a == 1 or b == 1 or a == b:
@@ -33,16 +34,21 @@ def is_broadcastable(shp1, shp2):
             return False
     return True
 
+
 def masked_fill(xs: paddle.Tensor,
                 mask: paddle.Tensor,
                 value: Union[float, int]):
     if paddle.in_dynamic_mode():
         assert is_broadcastable(xs.shape, mask.shape) is True
-    bshape = paddle.broadcast_shape(xs.shape, mask.shape)
+        bshape = paddle.broadcast_shape(xs.shape, mask.shape)
+    else:
+        # TODO(Hui Zhang): support broadcast_shape in static graph
+        bshape = xs.shape
     mask = mask.broadcast_to(bshape)
     trues = paddle.ones_like(xs) * value
     xs = paddle.where(mask, trues, xs)
     return xs
+
 
 def pad_sequence(sequences: List[paddle.Tensor],
                  batch_first: bool=False,

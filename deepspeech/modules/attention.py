@@ -99,11 +99,11 @@ class MultiHeadedAttention(nn.Layer):
         """
         n_batch = value.shape[0]
         if mask is not None:
+            # TODO(Hui Zhang): slice not support `int`; paddle not has `scalar` tensor.
             mask = mask.unsqueeze(1).equal(
-                paddle.to_tensor(0, dtype=mask.dtype))  # (batch, 1, *, time2)
+                paddle.zeros([1], dtype=mask.dtype))  # (batch, 1, *, time2)
             scores = masked_fill(scores, mask, -float('inf'))
-            attn = paddle.softmax(
-                scores, axis=-1)
+            attn = paddle.softmax(scores, axis=-1)
             attn = masked_fill(attn, mask, 0.0)  # (batch, head, time1, time2)
         else:
             attn = paddle.softmax(

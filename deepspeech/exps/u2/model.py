@@ -616,7 +616,7 @@ class U2Tester(U2Trainer):
                     shape=[1, encoder_max_time, encoder_model_size],
                     dtype='float32'),  # encoder_out
             ])
-        logger.info(f"Export code: {static_model}")
+        logger.info(f"Export code: {static_model.main_program}")
 
         paddle.jit.save(static_model, self.args.export_path)
 
