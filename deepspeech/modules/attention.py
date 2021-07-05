@@ -21,6 +21,7 @@ from paddle import nn
 from paddle.nn import initializer as I
 
 from deepspeech.utils.log import Log
+from deepspeech.utils.tensor_utils import masked_fill
 
 logger = Log(__name__).getlog()
 
@@ -100,17 +101,17 @@ class MultiHeadedAttention(nn.Layer):
         if mask is not None:
             mask = mask.unsqueeze(1).equal(
                 paddle.to_tensor(0, dtype=mask.dtype))  # (batch, 1, *, time2)
-            scores = scores.masked_fill(mask, -float('inf'))
+            scores = masked_fill(scores, mask, -float('inf'))
             attn = paddle.softmax(
-                scores, axis=-1).masked_fill(mask,
-                                             0.0)  # (batch, head, time1, time2)
+                scores, axis=-1)
+            attn = masked_fill(attn, mask, 0.0)  # (batch, head, time1, time2)
         else:
             attn = paddle.softmax(
                 scores, axis=-1)  # (batch, head, time1, time2)
 
         p_attn = self.dropout(attn)
         x = paddle.matmul(p_attn, value)  # (batch, head, time1, d_k)
-        x = x.transpose([0, 2, 1, 3]).contiguous().reshape(
+        x = x.transpose([0, 2, 1, 3]).reshape(
             [n_batch, -1, self.h * self.d_k])  # (batch, time1, d_model)
 
         return self.linear_out(x)  # (batch, time1, d_model)
