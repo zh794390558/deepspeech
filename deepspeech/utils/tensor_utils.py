@@ -13,7 +13,6 @@
 # limitations under the License.
 """Unility functions for Transformer."""
 from typing import List
-from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -142,7 +141,7 @@ def add_sos_eos(ys_pad: paddle.Tensor, sos: int, eos: int,
                 [ 4,  5,  6, 11, -1, -1],
                 [ 7,  8,  9, 11, -1, -1]])
     """
-    # TODO(Hui Zhang): using comment code, 
+    # TODO(Hui Zhang): using comment code,
     #_sos = paddle.to_tensor(
     #    [sos], dtype=paddle.long, stop_gradient=True, place=ys_pad.place)
     #_eos = paddle.to_tensor(
