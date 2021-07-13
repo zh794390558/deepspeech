@@ -602,23 +602,60 @@ class U2Tester(U2Trainer):
         infer_model.eval()
         #static_model = paddle.jit.to_static(infer_model., input_spec=input_spec)
 
-        decoder_max_time = 100
-        encoder_max_time = None
-        encoder_model_size = 256
+        logger.info(f"subsampling_rate: {infer_model.subsampling_rate}")
+        logger.info(f"right_context: {infer_model.right_context}")
+        logger.info(f"sos_symbol: {infer_model.sos_symbol}")
+        logger.info(f"eos_symbol: {infer_model.eos_symbol}")
+        logger.info(f"model_size: {infer_model.encoder.output_size}")
+
+        encoder_model_size = infer_model.encoder.output_size
+
+        # export encoder
+
+        # speech (paddle.Tensor): [B, Tmax, D]
+        # speech_lengths (paddle.Tensor): [B]
+        # decoding_chunk_size (int, optional): chuck size. Defaults to -1.
+        # num_decoding_left_chunks (int, optional): nums chunks. Defaults to -1.
+        # simulate_streaming (bool, optional): streaming or not. Defaults to False.
+
+        #encoder hiddens (B, Tmax, D), 
+        #encoder hiddens mask (B, 1, Tmax).
+        encoder_input_dim = 80
         static_model = paddle.jit.to_static(
-            infer_model.forward_attention_decoder,
+            infer_model.encoder.forward_export,
             input_spec=[
                 paddle.static.InputSpec(
-                    shape=[1, decoder_max_time], dtype='int32'),  # tgt
-                paddle.static.InputSpec(
-                    shape=[1, decoder_max_time], dtype='bool'),  # tgt_mask
-                paddle.static.InputSpec(
-                    shape=[1, encoder_max_time, encoder_model_size],
-                    dtype='float32'),  # encoder_out
+                    shape=[1, None, encoder_input_dim],
+                    dtype='float32'),  # speech, [B, U]
+                paddle.static.InputSpec(shape=[1, None],
+                                        dtype='bool'),  # speech_mask, [B, U],
+                -1,
+                -1
             ])
-        logger.info(f"Export code: {static_model.main_program}")
+        logger.debug(f"Export Code: {dir(static_model)}")
+        logger.debug(f"Export Porgram: {static_model.main_program}")
 
         paddle.jit.save(static_model, self.args.export_path)
+
+        # # export decoder
+        # decoder_max_time = 100
+        # encoder_max_time = None
+        # static_model = paddle.jit.to_static(
+        #     infer_model.forward_attention_decoder,
+        #     input_spec=[
+        #         paddle.static.InputSpec(
+        #             shape=[1, decoder_max_time], dtype='int32'),  # tgt, [B, U]
+        #         paddle.static.InputSpec(
+        #             shape=[1, decoder_max_time],
+        #             dtype='bool'),  # tgt_mask, [B, U]
+        #         paddle.static.InputSpec(
+        #             shape=[1, encoder_max_time, encoder_model_size],
+        #             dtype='float32'),  # encoder_out, [B, T, D]
+        #     ])
+        # logger.debug(f"Export Code: {static_model.code}")
+        # logger.debug(f"Export Porgram: {static_model.main_program}")
+
+        # paddle.jit.save(static_model, self.args.export_path)
 
     def run_export(self):
         try:

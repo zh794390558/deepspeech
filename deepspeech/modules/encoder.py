@@ -451,3 +451,46 @@ class ConformerEncoder(BaseEncoder):
                 normalize_before=normalize_before,
                 concat_after=concat_after) for _ in range(num_blocks)
         ])
+
+    def forward_export(
+            self,
+            xs: paddle.Tensor,
+            masks: paddle.Tensor,
+            decoding_chunk_size: int=0,
+            num_decoding_left_chunks: int=-1,
+    ) -> Tuple[paddle.Tensor, paddle.Tensor]:
+        """Embed positions in tensor.
+        Args:
+            xs: padded input tensor (B, L, D)
+            masks: input length (B, L)
+            decoding_chunk_size: decoding chunk size for dynamic chunk
+                0: default for training, use random dynamic chunk.
+                <0: for decoding, use full chunk.
+                >0: for decoding, use fixed chunk size as set.
+            num_decoding_left_chunks: number of left chunks, this is for decoding,
+                the chunk size is decoding_chunk_size.
+                >=0: use num_decoding_left_chunks
+                <0: use all left chunks
+        Returns:
+            encoder output tensor, lens and mask
+        """
+        masks = masks.unsqueeze(1)  # (B, 1, L)
+
+        if self.global_cmvn is not None:
+            xs = self.global_cmvn(xs)
+
+        #TODO(Hui Zhang): self.embed(xs, masks, offset=0), stride_slice not support bool tensor
+        xs, pos_emb, masks = self.embed(xs, masks.astype(xs.dtype), offset=0)
+        #TODO(Hui Zhang): remove mask.astype, stride_slice not support bool tensor
+        masks = masks.astype(paddle.bool)
+        #TODO(Hui Zhang): mask_pad = ~masks
+        mask_pad = masks.logical_not()
+        chunk_masks = masks
+        for layer in self.encoders:
+            xs, chunk_masks, _ = layer(xs, chunk_masks, pos_emb, mask_pad)
+        if self.normalize_before:
+            xs = self.after_norm(xs)
+        # Here we assume the mask is not changed in encoder layers, so just
+        # return the masks before encoder layers, and the masks will be used
+        # for cross attention with decoder later
+        return xs, masks
