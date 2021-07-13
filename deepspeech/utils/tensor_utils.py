@@ -40,9 +40,11 @@ def masked_fill(xs: paddle.Tensor,
                 value: Union[float, int]):
     if paddle.in_dynamic_mode():
         assert is_broadcastable(xs.shape, mask.shape) is True
-    # broadcast_shape input should be `list`
-    bshape = paddle.broadcast_shape(list(xs.shape), list(mask.shape))
-    mask = mask.broadcast_to(bshape)
+    # TODO(Hui Zhang): broadcast_shape input should be `list`
+    bshape = paddle.broadcast_shape(list(xs.shape), list(mask.shape)) 
+    # TODO(Hui Zhang): broadcast_to use `-1` as copy dim
+    # mask = mask.broadcast_to(bshape)
+    mask = mask.broadcast_to(bshape).reshape(list(xs.shape)) 
     trues = paddle.ones_like(xs) * value
     xs = paddle.where(mask, trues, xs)
     return xs

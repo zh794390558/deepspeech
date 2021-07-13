@@ -19,6 +19,7 @@ import paddle
 from paddle import nn
 from typeguard import check_argument_types
 
+from deepspeech.utils.tensor_utils import masked_fill
 from deepspeech.utils.log import Log
 
 logger = Log(__name__).getlog()
@@ -121,7 +122,8 @@ class ConvolutionModule(nn.Layer):
 
         # mask batch padding
         if mask_pad is not None:
-            x = x.masked_fill(mask_pad, 0.0)
+            # TODO(Hui Zhang): `x = x.masked_fill(mask_pad, 0.0)` for jit
+            x = masked_fill(x, mask_pad, 0.0)
 
         if self.lorder > 0:
             if cache is None:
