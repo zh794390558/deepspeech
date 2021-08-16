@@ -11,39 +11,61 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Contains DeepSpeech2 model."""
+"""Contains DeepSpeech2 and DeepSpeech2Online model."""
 import time
 from collections import defaultdict
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import paddle
 from paddle import distributed as dist
 from paddle.io import DataLoader
+from yacs.config import CfgNode
 
 from deepspeech.io.collator import SpeechCollator
 from deepspeech.io.dataset import ManifestDataset
 from deepspeech.io.sampler import SortagradBatchSampler
 from deepspeech.io.sampler import SortagradDistributedBatchSampler
-from deepspeech.models.deepspeech2 import DeepSpeech2InferModel
-from deepspeech.models.deepspeech2 import DeepSpeech2Model
+from deepspeech.models.ds2 import DeepSpeech2InferModel
+from deepspeech.models.ds2 import DeepSpeech2Model
+from deepspeech.models.ds2_online import DeepSpeech2InferModelOnline
+from deepspeech.models.ds2_online import DeepSpeech2ModelOnline
 from deepspeech.training.gradclip import ClipGradByGlobalNormWithLog
 from deepspeech.training.trainer import Trainer
 from deepspeech.utils import error_rate
 from deepspeech.utils import layer_tools
 from deepspeech.utils import mp_tools
+from deepspeech.utils.log import Autolog
 from deepspeech.utils.log import Log
 
 logger = Log(__name__).getlog()
 
 
 class DeepSpeech2Trainer(Trainer):
+    @classmethod
+    def params(cls, config: Optional[CfgNode]=None) -> CfgNode:
+        # training config
+        default = CfgNode(
+            dict(
+                lr=5e-4,  # learning rate
+                lr_decay=1.0,  # learning rate decay
+                weight_decay=1e-6,  # the coeff of weight decay
+                global_grad_clip=5.0,  # the global norm clip
+                n_epoch=50,  # train epochs
+            ))
+
+        if config is not None:
+            config.merge_from_other_cfg(default)
+        return default
+
     def __init__(self, config, args):
         super().__init__(config, args)
 
     def train_batch(self, batch_index, batch_data, msg):
         start = time.time()
-        loss = self.model(*batch_data)
+        utt, audio, audio_len, text, text_len = batch_data
+        loss = self.model(audio, audio_len, text, text_len)
         loss.backward()
         layer_tools.print_grads(self.model, print_func=None)
         self.optimizer.step()
@@ -54,7 +76,7 @@ class DeepSpeech2Trainer(Trainer):
             'train_loss': float(loss),
         }
         msg += "train time: {:>.3f}s, ".format(iteration_time)
-        msg += "batch size: {}, ".format(self.config.data.batch_size)
+        msg += "batch size: {}, ".format(self.config.collator.batch_size)
         msg += ', '.join('{}: {:>.6f}'.format(k, v)
                          for k, v in losses_np.items())
         logger.info(msg)
@@ -73,9 +95,10 @@ class DeepSpeech2Trainer(Trainer):
         num_seen_utts = 1
         total_loss = 0.0
         for i, batch in enumerate(self.valid_loader):
-            loss = self.model(*batch)
+            utt, audio, audio_len, text, text_len = batch
+            loss = self.model(audio, audio_len, text, text_len)
             if paddle.isfinite(loss):
-                num_utts = batch[0].shape[0]
+                num_utts = batch[1].shape[0]
                 num_seen_utts += num_utts
                 total_loss += float(loss) * num_utts
                 valid_losses['val_loss'].append(float(loss))
@@ -98,16 +121,18 @@ class DeepSpeech2Trainer(Trainer):
         return total_loss, num_seen_utts
 
     def setup_model(self):
-        config = self.config
-        model = DeepSpeech2Model(
-            feat_size=self.train_loader.dataset.feature_size,
-            dict_size=self.train_loader.dataset.vocab_size,
-            num_conv_layers=config.model.num_conv_layers,
-            num_rnn_layers=config.model.num_rnn_layers,
-            rnn_size=config.model.rnn_layer_size,
-            use_gru=config.model.use_gru,
-            share_rnn_weights=config.model.share_rnn_weights)
+        config = self.config.clone()
+        config.defrost()
+        config.model.feat_size = self.train_loader.collate_fn.feature_size
+        config.model.dict_size = self.train_loader.collate_fn.vocab_size
+        config.freeze()
 
+        if self.args.model_type == 'offline':
+            model = DeepSpeech2Model.from_config(config.model)
+        elif self.args.model_type == 'online':
+            model = DeepSpeech2ModelOnline.from_config(config.model)
+        else:
+            raise Exception("wrong model type")
         if self.parallel:
             model = paddle.DataParallel(model)
 
@@ -135,50 +160,87 @@ class DeepSpeech2Trainer(Trainer):
     def setup_dataloader(self):
         config = self.config.clone()
         config.defrost()
-        config.data.keep_transcription_text = False
+        config.collator.keep_transcription_text = False
 
         config.data.manifest = config.data.train_manifest
         train_dataset = ManifestDataset.from_config(config)
 
         config.data.manifest = config.data.dev_manifest
-        config.data.augmentation_config = ""
         dev_dataset = ManifestDataset.from_config(config)
+
+        config.data.manifest = config.data.test_manifest
+        test_dataset = ManifestDataset.from_config(config)
 
         if self.parallel:
             batch_sampler = SortagradDistributedBatchSampler(
                 train_dataset,
-                batch_size=config.data.batch_size,
+                batch_size=config.collator.batch_size,
                 num_replicas=None,
                 rank=None,
                 shuffle=True,
                 drop_last=True,
-                sortagrad=config.data.sortagrad,
-                shuffle_method=config.data.shuffle_method)
+                sortagrad=config.collator.sortagrad,
+                shuffle_method=config.collator.shuffle_method)
         else:
             batch_sampler = SortagradBatchSampler(
                 train_dataset,
                 shuffle=True,
-                batch_size=config.data.batch_size,
+                batch_size=config.collator.batch_size,
                 drop_last=True,
-                sortagrad=config.data.sortagrad,
-                shuffle_method=config.data.shuffle_method)
+                sortagrad=config.collator.sortagrad,
+                shuffle_method=config.collator.shuffle_method)
 
-        collate_fn = SpeechCollator(keep_transcription_text=False)
+        collate_fn_train = SpeechCollator.from_config(config)
+
+        config.collator.augmentation_config = ""
+        collate_fn_dev = SpeechCollator.from_config(config)
+
+        config.collator.keep_transcription_text = True
+        config.collator.augmentation_config = ""
+        collate_fn_test = SpeechCollator.from_config(config)
+
         self.train_loader = DataLoader(
             train_dataset,
             batch_sampler=batch_sampler,
-            collate_fn=collate_fn,
-            num_workers=config.data.num_workers)
+            collate_fn=collate_fn_train,
+            num_workers=config.collator.num_workers)
         self.valid_loader = DataLoader(
             dev_dataset,
-            batch_size=config.data.batch_size,
+            batch_size=config.collator.batch_size,
             shuffle=False,
             drop_last=False,
-            collate_fn=collate_fn)
-        logger.info("Setup train/valid Dataloader!")
+            collate_fn=collate_fn_dev)
+        self.test_loader = DataLoader(
+            test_dataset,
+            batch_size=config.decoding.batch_size,
+            shuffle=False,
+            drop_last=False,
+            collate_fn=collate_fn_test)
+        logger.info("Setup train/valid/test  Dataloader!")
 
 
 class DeepSpeech2Tester(DeepSpeech2Trainer):
+    @classmethod
+    def params(cls, config: Optional[CfgNode]=None) -> CfgNode:
+        # testing config
+        default = CfgNode(
+            dict(
+                alpha=2.5,  # Coef of LM for beam search.
+                beta=0.3,  # Coef of WC for beam search.
+                cutoff_prob=1.0,  # Cutoff probability for pruning.
+                cutoff_top_n=40,  # Cutoff number for pruning.
+                lang_model_path='models/lm/common_crawl_00.prune01111.trie.klm',  # Filepath for language model.
+                decoding_method='ctc_beam_search',  # Decoding method. Options: ctc_beam_search, ctc_greedy
+                error_rate_type='wer',  # Error rate type for evaluation. Options `wer`, 'cer'
+                num_proc_bsearch=8,  # # of CPUs for beam search.
+                beam_size=500,  # Beam search width.
+                batch_size=128,  # decoding batch size
+            ))
+
+        if config is not None:
+            config.merge_from_other_cfg(default)
+        return default
+
     def __init__(self, config, args):
         super().__init__(config, args)
 
@@ -191,15 +253,23 @@ class DeepSpeech2Tester(DeepSpeech2Trainer):
             trans.append(''.join([chr(i) for i in ids]))
         return trans
 
-    def compute_metrics(self, audio, audio_len, texts, texts_len):
+    def compute_metrics(self,
+                        utts,
+                        audio,
+                        audio_len,
+                        texts,
+                        texts_len,
+                        fout=None):
         cfg = self.config.decoding
         errors_sum, len_refs, num_ins = 0.0, 0, 0
         errors_func = error_rate.char_errors if cfg.error_rate_type == 'cer' else error_rate.word_errors
         error_rate_func = error_rate.cer if cfg.error_rate_type == 'cer' else error_rate.wer
 
-        vocab_list = self.test_loader.dataset.vocab_list
+        vocab_list = self.test_loader.collate_fn.vocab_list
 
         target_transcripts = self.ordid2token(texts, texts_len)
+        self.autolog.times.start()
+        self.autolog.times.stamp()
         result_transcripts = self.model.decode(
             audio,
             audio_len,
@@ -212,12 +282,18 @@ class DeepSpeech2Tester(DeepSpeech2Trainer):
             cutoff_prob=cfg.cutoff_prob,
             cutoff_top_n=cfg.cutoff_top_n,
             num_processes=cfg.num_proc_bsearch)
+        self.autolog.times.stamp()
+        self.autolog.times.stamp()
+        self.autolog.times.end()
 
-        for target, result in zip(target_transcripts, result_transcripts):
+        for utt, target, result in zip(utts, target_transcripts,
+                                       result_transcripts):
             errors, len_ref = errors_func(target, result)
             errors_sum += errors
             len_refs += len_ref
             num_ins += 1
+            if fout:
+                fout.write(utt + " " + result + "\n")
             logger.info("\nTarget Transcription: %s\nOutput Transcription: %s" %
                         (target, result))
             logger.info("Current error rate [%s] = %f" %
@@ -234,19 +310,25 @@ class DeepSpeech2Tester(DeepSpeech2Trainer):
     @paddle.no_grad()
     def test(self):
         logger.info(f"Test Total Examples: {len(self.test_loader.dataset)}")
+        self.autolog = Autolog(
+            batch_size=self.config.decoding.batch_size,
+            model_name="deepspeech2",
+            model_precision="fp32").getlog()
         self.model.eval()
         cfg = self.config
         error_rate_type = None
         errors_sum, len_refs, num_ins = 0.0, 0, 0
-
-        for i, batch in enumerate(self.test_loader):
-            metrics = self.compute_metrics(*batch)
-            errors_sum += metrics['errors_sum']
-            len_refs += metrics['len_refs']
-            num_ins += metrics['num_ins']
-            error_rate_type = metrics['error_rate_type']
-            logger.info("Error rate [%s] (%d/?) = %f" %
-                        (error_rate_type, num_ins, errors_sum / len_refs))
+        with open(self.args.result_file, 'w') as fout:
+            for i, batch in enumerate(self.test_loader):
+                utts, audio, audio_len, texts, texts_len = batch
+                metrics = self.compute_metrics(utts, audio, audio_len, texts,
+                                               texts_len, fout)
+                errors_sum += metrics['errors_sum']
+                len_refs += metrics['len_refs']
+                num_ins += metrics['num_ins']
+                error_rate_type = metrics['error_rate_type']
+                logger.info("Error rate [%s] (%d/?) = %f" %
+                            (error_rate_type, num_ins, errors_sum / len_refs))
 
         # logging
         msg = "Test: "
@@ -255,6 +337,7 @@ class DeepSpeech2Tester(DeepSpeech2Trainer):
         msg += "Final error rate [%s] (%d/%d) = %f" % (
             error_rate_type, num_ins, num_ins, errors_sum / len_refs)
         logger.info(msg)
+        self.autolog.report()
 
     def run_test(self):
         self.resume_or_scratch()
@@ -264,19 +347,18 @@ class DeepSpeech2Tester(DeepSpeech2Trainer):
             exit(-1)
 
     def export(self):
-        infer_model = DeepSpeech2InferModel.from_pretrained(
-            self.test_loader.dataset, self.config, self.args.checkpoint_path)
+        if self.args.model_type == 'offline':
+            infer_model = DeepSpeech2InferModel.from_pretrained(
+                self.test_loader, self.config, self.args.checkpoint_path)
+        elif self.args.model_type == 'online':
+            infer_model = DeepSpeech2InferModelOnline.from_pretrained(
+                self.test_loader, self.config, self.args.checkpoint_path)
+        else:
+            raise Exception("wrong model type")
+
         infer_model.eval()
-        feat_dim = self.test_loader.dataset.feature_size
-        static_model = paddle.jit.to_static(
-            infer_model,
-            input_spec=[
-                paddle.static.InputSpec(
-                    shape=[None, None, feat_dim],
-                    dtype='float32'),  # audio, [B,T,D]
-                paddle.static.InputSpec(shape=[None],
-                                        dtype='int64'),  # audio_length, [B]
-            ])
+        feat_dim = self.test_loader.collate_fn.feature_size
+        static_model = infer_model.export()
         logger.info(f"Export code: {static_model.forward.code}")
         paddle.jit.save(static_model, self.args.export_path)
 
@@ -299,46 +381,6 @@ class DeepSpeech2Tester(DeepSpeech2Trainer):
 
         self.iteration = 0
         self.epoch = 0
-
-    def setup_model(self):
-        config = self.config
-        model = DeepSpeech2Model(
-            feat_size=self.test_loader.dataset.feature_size,
-            dict_size=self.test_loader.dataset.vocab_size,
-            num_conv_layers=config.model.num_conv_layers,
-            num_rnn_layers=config.model.num_rnn_layers,
-            rnn_size=config.model.rnn_layer_size,
-            use_gru=config.model.use_gru,
-            share_rnn_weights=config.model.share_rnn_weights)
-        self.model = model
-        logger.info("Setup model!")
-
-    def setup_dataloader(self):
-        config = self.config.clone()
-        config.defrost()
-        # return raw text
-
-        config.data.manifest = config.data.test_manifest
-        config.data.keep_transcription_text = True
-        config.data.augmentation_config = ""
-        # filter test examples, will cause less examples, but no mismatch with training
-        # and can use large batch size , save training time, so filter test egs now.
-        # config.data.min_input_len = 0.0  # second
-        # config.data.max_input_len = float('inf')  # second
-        # config.data.min_output_len = 0.0  # tokens
-        # config.data.max_output_len = float('inf')  # tokens
-        # config.data.min_output_input_ratio = 0.00
-        # config.data.max_output_input_ratio = float('inf')
-        test_dataset = ManifestDataset.from_config(config)
-
-        # return text ord id
-        self.test_loader = DataLoader(
-            test_dataset,
-            batch_size=config.decoding.batch_size,
-            shuffle=False,
-            drop_last=False,
-            collate_fn=SpeechCollator(keep_transcription_text=True))
-        logger.info("Setup test Dataloader!")
 
     def setup_output_dir(self):
         """Create a directory used for output.
