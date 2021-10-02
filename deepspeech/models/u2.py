@@ -40,8 +40,8 @@ from deepspeech.modules.mask import make_pad_mask
 from deepspeech.modules.mask import mask_finished_preds
 from deepspeech.modules.mask import mask_finished_scores
 from deepspeech.modules.mask import subsequent_mask
-from deepspeech.utils import checkpoint
 from deepspeech.utils import layer_tools
+from deepspeech.utils.checkpoint import Checkpoint
 from deepspeech.utils.ctc_utils import remove_duplicates_and_blank
 from deepspeech.utils.log import Log
 from deepspeech.utils.tensor_utils import add_sos_eos
@@ -894,7 +894,7 @@ class U2Model(U2BaseModel):
         model = cls.from_config(config)
 
         if checkpoint_path:
-            infos = checkpoint.load_parameters(
+            infos = Checkpoint().load_parameters(
                 model, checkpoint_path=checkpoint_path)
             logger.info(f"checkpoint info: {infos}")
         layer_tools.summary(model)

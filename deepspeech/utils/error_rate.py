@@ -14,9 +14,12 @@
 """This module provides functions to calculate error rate in different level.
 e.g. wer for word-level, cer for char-level.
 """
+import editdistance
 import numpy as np
 
 __all__ = ['word_errors', 'char_errors', 'wer', 'cer']
+
+editdistance.eval("a", "b")
 
 
 def _levenshtein_distance(ref, hyp):
@@ -89,6 +92,8 @@ def word_errors(reference, hypothesis, ignore_case=False, delimiter=' '):
     hyp_words = list(filter(None, hypothesis.split(delimiter)))
 
     edit_distance = _levenshtein_distance(ref_words, hyp_words)
+    # `editdistance.eavl precision` less than `_levenshtein_distance`
+    # edit_distance = editdistance.eval(ref_words, hyp_words)
     return float(edit_distance), len(ref_words)
 
 
@@ -119,6 +124,8 @@ def char_errors(reference, hypothesis, ignore_case=False, remove_space=False):
     hypothesis = join_char.join(list(filter(None, hypothesis.split(' '))))
 
     edit_distance = _levenshtein_distance(reference, hypothesis)
+    # `editdistance.eavl precision` less than `_levenshtein_distance`
+    # edit_distance = editdistance.eval(reference, hypothesis)
     return float(edit_distance), len(reference)
 
 

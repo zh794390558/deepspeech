@@ -26,9 +26,6 @@ from deepspeech.utils.log import Log
 #TODO(Hui Zhang): remove  fluid import
 logger = Log(__name__).getlog()
 
-########### hcak logging #############
-logger.warn = logger.warning
-
 ########### hcak paddle #############
 paddle.bool = 'bool'
 paddle.float16 = 'float16'
@@ -91,23 +88,23 @@ def convert_dtype_to_string(tensor_dtype):
 
 
 if not hasattr(paddle, 'softmax'):
-    logger.warn("register user softmax to paddle, remove this when fixed!")
+    logger.debug("register user softmax to paddle, remove this when fixed!")
     setattr(paddle, 'softmax', paddle.nn.functional.softmax)
 
 if not hasattr(paddle, 'log_softmax'):
-    logger.warn("register user log_softmax to paddle, remove this when fixed!")
+    logger.debug("register user log_softmax to paddle, remove this when fixed!")
     setattr(paddle, 'log_softmax', paddle.nn.functional.log_softmax)
 
 if not hasattr(paddle, 'sigmoid'):
-    logger.warn("register user sigmoid to paddle, remove this when fixed!")
+    logger.debug("register user sigmoid to paddle, remove this when fixed!")
     setattr(paddle, 'sigmoid', paddle.nn.functional.sigmoid)
 
 if not hasattr(paddle, 'log_sigmoid'):
-    logger.warn("register user log_sigmoid to paddle, remove this when fixed!")
+    logger.debug("register user log_sigmoid to paddle, remove this when fixed!")
     setattr(paddle, 'log_sigmoid', paddle.nn.functional.log_sigmoid)
 
 if not hasattr(paddle, 'relu'):
-    logger.warn("register user relu to paddle, remove this when fixed!")
+    logger.debug("register user relu to paddle, remove this when fixed!")
     setattr(paddle, 'relu', paddle.nn.functional.relu)
 
 
@@ -116,7 +113,7 @@ def cat(xs, dim=0):
 
 
 if not hasattr(paddle, 'cat'):
-    logger.warn(
+    logger.debug(
         "override cat of paddle if exists or register, remove this when fixed!")
     paddle.cat = cat
 
@@ -127,7 +124,7 @@ def item(x: paddle.Tensor):
 
 
 if not hasattr(paddle.Tensor, 'item'):
-    logger.warn(
+    logger.debug(
         "override item of paddle.Tensor if exists or register, remove this when fixed!"
     )
     paddle.Tensor.item = item
@@ -138,13 +135,13 @@ def func_long(x: paddle.Tensor):
 
 
 if not hasattr(paddle.Tensor, 'long'):
-    logger.warn(
+    logger.debug(
         "override long of paddle.Tensor if exists or register, remove this when fixed!"
     )
     paddle.Tensor.long = func_long
 
 if not hasattr(paddle.Tensor, 'numel'):
-    logger.warn(
+    logger.debug(
         "override numel of paddle.Tensor if exists or register, remove this when fixed!"
     )
     paddle.Tensor.numel = paddle.numel
@@ -158,7 +155,7 @@ def new_full(x: paddle.Tensor,
 
 
 if not hasattr(paddle.Tensor, 'new_full'):
-    logger.warn(
+    logger.debug(
         "override new_full of paddle.Tensor if exists or register, remove this when fixed!"
     )
     paddle.Tensor.new_full = new_full
@@ -173,13 +170,13 @@ def eq(xs: paddle.Tensor, ys: Union[paddle.Tensor, float]) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'eq'):
-    logger.warn(
+    logger.debug(
         "override eq of paddle.Tensor if exists or register, remove this when fixed!"
     )
     paddle.Tensor.eq = eq
 
 if not hasattr(paddle, 'eq'):
-    logger.warn(
+    logger.debug(
         "override eq of paddle if exists or register, remove this when fixed!")
     paddle.eq = eq
 
@@ -189,7 +186,7 @@ def contiguous(xs: paddle.Tensor) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'contiguous'):
-    logger.warn(
+    logger.debug(
         "override contiguous of paddle.Tensor if exists or register, remove this when fixed!"
     )
     paddle.Tensor.contiguous = contiguous
@@ -206,7 +203,7 @@ def size(xs: paddle.Tensor, *args: int) -> paddle.Tensor:
 
 
 #`to_static` do not process `size` property, maybe some `paddle` api dependent on it.
-logger.warn(
+logger.debug(
     "override size of paddle.Tensor "
     "(`to_static` do not process `size` property, maybe some `paddle` api dependent on it), remove this when fixed!"
 )
@@ -218,7 +215,7 @@ def view(xs: paddle.Tensor, *args: int) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'view'):
-    logger.warn("register user view to paddle.Tensor, remove this when fixed!")
+    logger.debug("register user view to paddle.Tensor, remove this when fixed!")
     paddle.Tensor.view = view
 
 
@@ -227,7 +224,7 @@ def view_as(xs: paddle.Tensor, ys: paddle.Tensor) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'view_as'):
-    logger.warn(
+    logger.debug(
         "register user view_as to paddle.Tensor, remove this when fixed!")
     paddle.Tensor.view_as = view_as
 
@@ -253,7 +250,7 @@ def masked_fill(xs: paddle.Tensor,
 
 
 if not hasattr(paddle.Tensor, 'masked_fill'):
-    logger.warn(
+    logger.debug(
         "register user masked_fill to paddle.Tensor, remove this when fixed!")
     paddle.Tensor.masked_fill = masked_fill
 
@@ -271,7 +268,7 @@ def masked_fill_(xs: paddle.Tensor,
 
 
 if not hasattr(paddle.Tensor, 'masked_fill_'):
-    logger.warn(
+    logger.debug(
         "register user masked_fill_ to paddle.Tensor, remove this when fixed!")
     paddle.Tensor.masked_fill_ = masked_fill_
 
@@ -283,7 +280,8 @@ def fill_(xs: paddle.Tensor, value: Union[float, int]) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'fill_'):
-    logger.warn("register user fill_ to paddle.Tensor, remove this when fixed!")
+    logger.debug(
+        "register user fill_ to paddle.Tensor, remove this when fixed!")
     paddle.Tensor.fill_ = fill_
 
 
@@ -292,22 +290,22 @@ def repeat(xs: paddle.Tensor, *size: Any) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'repeat'):
-    logger.warn(
+    logger.debug(
         "register user repeat to paddle.Tensor, remove this when fixed!")
     paddle.Tensor.repeat = repeat
 
 if not hasattr(paddle.Tensor, 'softmax'):
-    logger.warn(
+    logger.debug(
         "register user softmax to paddle.Tensor, remove this when fixed!")
     setattr(paddle.Tensor, 'softmax', paddle.nn.functional.softmax)
 
 if not hasattr(paddle.Tensor, 'sigmoid'):
-    logger.warn(
+    logger.debug(
         "register user sigmoid to paddle.Tensor, remove this when fixed!")
     setattr(paddle.Tensor, 'sigmoid', paddle.nn.functional.sigmoid)
 
 if not hasattr(paddle.Tensor, 'relu'):
-    logger.warn("register user relu to paddle.Tensor, remove this when fixed!")
+    logger.debug("register user relu to paddle.Tensor, remove this when fixed!")
     setattr(paddle.Tensor, 'relu', paddle.nn.functional.relu)
 
 
@@ -316,7 +314,7 @@ def type_as(x: paddle.Tensor, other: paddle.Tensor) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'type_as'):
-    logger.warn(
+    logger.debug(
         "register user type_as to paddle.Tensor, remove this when fixed!")
     setattr(paddle.Tensor, 'type_as', type_as)
 
@@ -332,7 +330,7 @@ def to(x: paddle.Tensor, *args, **kwargs) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'to'):
-    logger.warn("register user to to paddle.Tensor, remove this when fixed!")
+    logger.debug("register user to to paddle.Tensor, remove this when fixed!")
     setattr(paddle.Tensor, 'to', to)
 
 
@@ -341,7 +339,8 @@ def func_float(x: paddle.Tensor) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'float'):
-    logger.warn("register user float to paddle.Tensor, remove this when fixed!")
+    logger.debug(
+        "register user float to paddle.Tensor, remove this when fixed!")
     setattr(paddle.Tensor, 'float', func_float)
 
 
@@ -350,7 +349,7 @@ def func_int(x: paddle.Tensor) -> paddle.Tensor:
 
 
 if not hasattr(paddle.Tensor, 'int'):
-    logger.warn("register user int to paddle.Tensor, remove this when fixed!")
+    logger.debug("register user int to paddle.Tensor, remove this when fixed!")
     setattr(paddle.Tensor, 'int', func_int)
 
 
@@ -359,7 +358,7 @@ def tolist(x: paddle.Tensor) -> List[Any]:
 
 
 if not hasattr(paddle.Tensor, 'tolist'):
-    logger.warn(
+    logger.debug(
         "register user tolist to paddle.Tensor, remove this when fixed!")
     setattr(paddle.Tensor, 'tolist', tolist)
 
@@ -374,7 +373,7 @@ def glu(x: paddle.Tensor, axis=-1) -> paddle.Tensor:
 
 
 if not hasattr(paddle.nn.functional, 'glu'):
-    logger.warn(
+    logger.debug(
         "register user glu to paddle.nn.functional, remove this when fixed!")
     setattr(paddle.nn.functional, 'glu', glu)
 
@@ -425,19 +424,19 @@ def ctc_loss(logits,
     return loss_out
 
 
-logger.warn(
+logger.debug(
     "override ctc_loss of paddle.nn.functional if exists, remove this when fixed!"
 )
 F.ctc_loss = ctc_loss
 
 ########### hcak paddle.nn #############
 if not hasattr(paddle.nn, 'Module'):
-    logger.warn("register user Module to paddle.nn, remove this when fixed!")
+    logger.debug("register user Module to paddle.nn, remove this when fixed!")
     setattr(paddle.nn, 'Module', paddle.nn.Layer)
 
 # maybe cause assert isinstance(sublayer, core.Layer)
 if not hasattr(paddle.nn, 'ModuleList'):
-    logger.warn(
+    logger.debug(
         "register user ModuleList to paddle.nn, remove this when fixed!")
     setattr(paddle.nn, 'ModuleList', paddle.nn.LayerList)
 
@@ -454,7 +453,7 @@ class GLU(nn.Layer):
 
 
 if not hasattr(paddle.nn, 'GLU'):
-    logger.warn("register user GLU to paddle.nn, remove this when fixed!")
+    logger.debug("register user GLU to paddle.nn, remove this when fixed!")
     setattr(paddle.nn, 'GLU', GLU)
 
 
@@ -486,12 +485,12 @@ class ConstantPad2d(nn.Layer):
 
 
 if not hasattr(paddle.nn, 'ConstantPad2d'):
-    logger.warn(
+    logger.debug(
         "register user ConstantPad2d to paddle.nn, remove this when fixed!")
     setattr(paddle.nn, 'ConstantPad2d', ConstantPad2d)
 
 ########### hcak paddle.jit #############
 
 if not hasattr(paddle.jit, 'export'):
-    logger.warn("register user export to paddle.jit, remove this when fixed!")
+    logger.debug("register user export to paddle.jit, remove this when fixed!")
     setattr(paddle.jit, 'export', paddle.jit.to_static)

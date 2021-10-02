@@ -18,8 +18,8 @@ import paddle
 from paddle import distributed as dist
 from tensorboardX import SummaryWriter
 
-from deepspeech.utils import checkpoint
 from deepspeech.utils import mp_tools
+from deepspeech.utils.checkpoint import Checkpoint
 from deepspeech.utils.log import Log
 
 __all__ = ["Trainer"]
@@ -151,7 +151,7 @@ class Trainer():
         resume training.
         """
         scratch = None
-        infos = checkpoint.load_parameters(
+        infos = Checkpoint().load_parameters(
             self.model,
             self.optimizer,
             checkpoint_dir=self.checkpoint_dir,

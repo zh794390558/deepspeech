@@ -15,9 +15,50 @@
 import distutils.util
 import math
 import os
+import random
+import sys
+from contextlib import contextmanager
 from typing import List
 
-__all__ = ['print_arguments', 'add_arguments', "log_add"]
+import numpy as np
+import paddle
+import soundfile
+
+from deepspeech.utils.log import Log
+
+logger = Log(__name__).getlog()
+
+__all__ = [
+    "all_version", "UpdateConfig", "seed_all", 'print_arguments',
+    'add_arguments', "log_add"
+]
+
+
+def all_version():
+    vers = {
+        "python": sys.version,
+        "paddle": paddle.__version__,
+        "paddle_commit": paddle.version.commit,
+        "soundfile": soundfile.__version__,
+    }
+    logger.info("Deps Module Version:")
+    for k, v in vers.items():
+        logger.info(f"{k}: {v}")
+
+
+@contextmanager
+def UpdateConfig(config):
+    """Update yacs config"""
+    config.defrost()
+    yield
+    config.freeze()
+
+
+def seed_all(seed: int=210329):
+    """freeze random generator seed."""
+    np.random.seed(seed)
+    random.seed(seed)
+    paddle.seed(seed)
 
 
 def print_arguments(args, info=None):
@@ -79,3 +120,22 @@ def log_add(args: List[int]) -> float:
     a_max = max(args)
     lsp = math.log(sum(math.exp(a - a_max) for a in args))
     return a_max + lsp
+
+
+def get_subsample(config):
+    """Subsample rate from config.
+
+    Args:
+        config (yacs.config.CfgNode): yaml config
+
+    Returns:
+        int: subsample rate.
+    """
+    input_layer = config["model"]["encoder_conf"]["input_layer"]
+    assert input_layer in ["conv2d", "conv2d6", "conv2d8"]
+    if input_layer == "conv2d":
+        return 4
+    elif input_layer == "conv2d6":
+        return 6
+    elif input_layer == "conv2d8":
+        return 8
