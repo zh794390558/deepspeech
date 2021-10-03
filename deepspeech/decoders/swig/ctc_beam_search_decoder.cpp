@@ -35,7 +35,8 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
     size_t beam_size,
     double cutoff_prob,
     size_t cutoff_top_n,
-    Scorer *ext_scorer) {
+    Scorer *ext_scorer,
+    size_t blank_id) {
     // dimension check
     size_t num_time_steps = probs_seq.size();
     for (size_t i = 0; i < num_time_steps; ++i) {
@@ -45,19 +46,13 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
                        "The shape of probs_seq does not match with "
                        "the shape of the vocabulary");
     }
-
-    // assign blank id
-    // size_t blank_id = vocabulary.size();
-    size_t blank_id = 0;
-
     // assign space id
-    auto it = std::find(vocabulary.begin(), vocabulary.end(), " ");
+    auto it = std::find(vocabulary.begin(), vocabulary.end(), kSPACE);
     int space_id = it - vocabulary.begin();
     // if no space in vocabulary
     if ((size_t)space_id >= vocabulary.size()) {
         space_id = -2;
     }
-
     // init prefixes' root
     PathTrie root;
     root.score = root.log_prob_b_prev = 0.0;
@@ -218,7 +213,8 @@ ctc_beam_search_decoder_batch(
     size_t num_processes,
     double cutoff_prob,
     size_t cutoff_top_n,
-    Scorer *ext_scorer) {
+    Scorer *ext_scorer,
+    size_t blank_id) {
     VALID_CHECK_GT(num_processes, 0, "num_processes must be nonnegative!");
     // thread pool
     ThreadPool pool(num_processes);
@@ -234,7 +230,8 @@ ctc_beam_search_decoder_batch(
                                       beam_size,
                                       cutoff_prob,
                                       cutoff_top_n,
-                                      ext_scorer));
+                                      ext_scorer,
+                                      blank_id));
     }
 
     // get decoding results
