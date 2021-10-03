@@ -13,7 +13,7 @@ data:
   max_output_len: 400.0
   min_output_input_ratio: 0.05
   max_output_input_ratio: 10.0
-  specgram_type: linear
+  spectrum_type: linear
   target_sample_rate: 16000
   max_freq: None
   n_fft: None
