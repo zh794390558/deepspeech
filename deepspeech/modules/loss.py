@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import inspect
+from functools import partial
+
 import paddle
 from paddle import nn
 from paddle.nn import functional as F
@@ -23,11 +26,51 @@ __all__ = ['CTCLoss', "LabelSmoothingLoss"]
 
 
 class CTCLoss(nn.Layer):
-    def __init__(self, blank=0, reduction='sum', batch_average=False):
+    def __init__(self,
+                 blank=0,
+                 reduction='sum',
+                 batch_average=False,
+                 grad_norm_type=None):
         super().__init__()
         # last token id as blank id
         self.loss = nn.CTCLoss(blank=blank, reduction=reduction)
         self.batch_average = batch_average
+
+        logger.info(
+            f"CTCLoss Loss reduction: {reduction}, div-bs: {batch_average}")
+        logger.info(f"CTCLoss Grad Norm Type: {grad_norm_type}")
+
+        assert grad_norm_type in ('instance', 'batch', 'frame', None)
+        self.norm_by_times = False
+        self.norm_by_batchsize = False
+        self.norm_by_total_logits_len = False
+        if grad_norm_type is None:
+            # no grad norm
+            pass
+        elif grad_norm_type == 'instance':
+            self.norm_by_times = True
+        elif grad_norm_type == 'batch':
+            self.norm_by_batchsize = True
+        elif grad_norm_type == 'frame':
+            self.norm_by_total_logits_len = True
+        else:
+            raise ValueError(f"CTCLoss Grad Norm no support {grad_norm_type}")
+        self.kwargs = {
+            "norm_by_times": self.norm_by_times,
+            "norm_by_batchsize": self.norm_by_batchsize,
+            "norm_by_total_logits_len": self.norm_by_total_logits_len,
+        }
+
+        # Derive only the args which the func has
+        try:
+            param = inspect.signature(self.loss.forward).parameters
+        except ValueError:
+            # Some function, e.g. built-in function, are failed
+            param = {}
+        _kwargs = {k: v for k, v in self.kwargs.items() if k in param}
+        _notin = {k: v for k, v in self.kwargs.items() if k not in param}
+        logger.info(f"{self.loss} kwargs:{_kwargs}, not support: {_notin}")
+        self.loss_fn = partial(self.loss.forward, **_kwargs)
 
     def forward(self, logits, ys_pad, hlens, ys_lens):
         """Compute CTC loss.
@@ -46,9 +89,8 @@ class CTCLoss(nn.Layer):
         # warp-ctc need activation with shape [T, B, V + 1]
         # logits: (B, L, D) -> (L, B, D)
         logits = logits.transpose([1, 0, 2])
-        # (TODO:Hui Zhang) ctc loss does not support int64 labels
         ys_pad = ys_pad.astype(paddle.int32)
-        loss = self.loss(logits, ys_pad, hlens, ys_lens)
+        loss = self.loss_fn(logits, ys_pad, hlens, ys_lens)
         if self.batch_average:
             # Batch-size average
             loss = loss / B
@@ -89,8 +131,8 @@ class LabelSmoothingLoss(nn.Layer):
             size (int): the number of class
             padding_idx (int): padding class id which will be ignored for loss
             smoothing (float): smoothing rate (0.0 means the conventional CE)
-            normalize_length (bool): 
-                True, normalize loss by sequence length; 
+            normalize_length (bool):
+                True, normalize loss by sequence length;
                 False, normalize loss by batch size.
                 Defaults to False.
         """
@@ -107,7 +149,7 @@ class LabelSmoothingLoss(nn.Layer):
         The model outputs and data labels tensors are flatten to
         (batch*seqlen, class) shape and a mask is applied to the
         padding part which should not be calculated for loss.
-        
+
         Args:
             x (paddle.Tensor): prediction (batch, seqlen, class)
             target (paddle.Tensor):
@@ -125,7 +167,7 @@ class LabelSmoothingLoss(nn.Layer):
         true_dist = paddle.full_like(x, self.smoothing / (self.size - 1))
         ignore = target == self.padding_idx  # (B,)
 
-        # target = target * (1 - ignore)  # avoid -1 index
+        #TODO(Hui Zhang): target = target * (1 - ignore)  # avoid -1 index
         target = target.masked_fill(ignore, 0)  # avoid -1 index
         # true_dist.scatter_(1, target.unsqueeze(1), self.confidence)
         target_mask = F.one_hot(target, self.size)

@@ -13,7 +13,7 @@
 # limitations under the License.
 from yacs.config import CfgNode as CN
 
-from deepspeech.models.deepspeech2 import DeepSpeech2Model
+from deepspeech.models.ds2 import DeepSpeech2Model
 
 _C = CN()
 _C.data = CN(
@@ -46,16 +46,7 @@ _C.data = CN(
         shuffle_method="batch_shuffle",  # 'batch_shuffle', 'instance_shuffle'
     ))
 
-_C.model = CN(
-    dict(
-        num_conv_layers=2,  #Number of stacking convolution layers.
-        num_rnn_layers=3,  #Number of stacking RNN layers.
-        rnn_layer_size=1024,  #RNN layer size (number of RNN cells).
-        use_gru=True,  #Use gru if set True. Use simple rnn if set False.
-        share_rnn_weights=True  #Whether to share input-hidden weights between forward and backward directional RNNs.Notice that for GRU, weight sharing is not supported.
-    ))
-
-DeepSpeech2Model.params(_C.model)
+_C.model = DeepSpeech2Model.params()
 
 _C.training = CN(
     dict(
@@ -81,7 +72,7 @@ _C.decoding = CN(
     ))
 
 
-def get_cfg_defaults():
+def get_cfg_defaults(model_type):
     """Get a yacs CfgNode object with default values for my_project."""
     # Return a clone so that the defaults will not be altered
     # This is for the "local variable" use pattern

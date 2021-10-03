@@ -11,35 +11,36 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Trainer for DeepSpeech2 model."""
-from paddle import distributed as dist
-
+"""Evaluation for DeepSpeech2 model."""
 from deepspeech.exps.deepspeech2.config import get_cfg_defaults
-from deepspeech.exps.deepspeech2.model import DeepSpeech2Trainer as Trainer
+from deepspeech.exps.deepspeech2.model import DeepSpeech2ExportTester as ExportTester
 from deepspeech.training.cli import default_argument_parser
 from deepspeech.utils.utility import print_arguments
 
 
 def main_sp(config, args):
-    exp = Trainer(config, args)
+    exp = ExportTester(config, args)
     exp.setup()
-    exp.run()
+    exp.run_test()
 
 
 def main(config, args):
-    if args.nprocs > 0:
-        dist.spawn(main_sp, args=(config, args), nprocs=args.nprocs)
-    else:
-        main_sp(config, args)
+    main_sp(config, args)
 
 
 if __name__ == "__main__":
     parser = default_argument_parser()
+    # save asr result to
+    parser.add_argument(
+        "--result_file", type=str, help="path of save the asr result")
+    #load jit model from
+    parser.add_argument(
+        "--export_path", type=str, help="path of the jit model to save")
     parser.add_argument(
         "--model_type", type=str, default='offline', help='offline/online')
     args = parser.parse_args()
-    print("model_type:{}".format(args.model_type))
     print_arguments(args, globals())
+    print("model_type:{}".format(args.model_type))
 
     # https://yaml.org/type/float.html
     config = get_cfg_defaults(args.model_type)

@@ -139,9 +139,9 @@ class Trainer():
             "epoch": self.epoch,
             "lr": self.optimizer.get_lr()
         })
-        checkpoint.save_parameters(self.checkpoint_dir, self.iteration
-                                   if tag is None else tag, self.model,
-                                   self.optimizer, infos)
+        Checkpoint().save_parameters(self.checkpoint_dir, self.iteration
+                                     if tag is None else tag, self.model,
+                                     self.optimizer, infos)
 
     def resume_or_scratch(self):
         """Resume from latest checkpoint at checkpoints in the output 
