@@ -16,16 +16,27 @@ mkdir -p exp
 # seed may break model convergence
 seed=0
 if [ ${seed} != 0 ]; then
+    #export FLAGS_cudnn_deterministic=True
+    echo "None"
+fi
+
+# export FLAGS_cudnn_exhaustive_search=true
+# export FLAGS_conv_workspace_size_limit=4000
+
+# seed may break model convergence
+seed=0
+if [ ${seed} != 0 ]; then
     echo "None"
 fi
 
 python3 -u ${BIN_DIR}/train.py \
 --nproc ${ngpu} \
 --config ${config_path} \
---output exp/${ckpt_name} \
---seed ${seed}
+--output exp/${ckpt_name}
+#--seed ${seed}
 
 if [ ${seed} != 0 ]; then
+    #unset FLAGS_cudnn_deterministic
     echo "None"
 fi
 

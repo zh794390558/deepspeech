@@ -12,10 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Contains data helper functions."""
-import codecs
 import json
 import math
+import tarfile
+from collections import namedtuple
+from typing import List
+from typing import Optional
+from typing import Text
 
+import jsonlines
 import numpy as np
 
 from deepspeech.utils.log import Log
@@ -23,17 +28,41 @@ from deepspeech.utils.log import Log
 logger = Log(__name__).getlog()
 
 __all__ = [
-    "load_cmvn", "read_manifest", "rms_to_db", "rms_to_dbfs", "max_dbfs",
-    "mean_dbfs", "gain_db_to_ratio", "normalize_audio", "SOS", "EOS", "UNK",
-    "BLANK"
+    "load_dict", "load_cmvn", "read_manifest", "rms_to_db", "rms_to_dbfs",
+    "max_dbfs", "mean_dbfs", "gain_db_to_ratio", "normalize_audio", "SOS",
+    "EOS", "UNK", "BLANK", "MASKCTC", "SPACE"
 ]
 
 IGNORE_ID = -1
-SOS = "<sos/eos>"
+# `sos` and `eos` using same token
+SOS = "<eos>"
 EOS = SOS
 UNK = "<unk>"
 SPACE = " "
 BLANK = "<blank>"
+MASKCTC = "<mask>"
+SPACE = "<space>"
+
+
+def load_dict(dict_path: Optional[Text], maskctc=False) -> Optional[List[Text]]:
+    if dict_path is None:
+        return None
+
+    with open(dict_path, "r") as f:
+        dictionary = f.readlines()
+    # first token is `<blank>`
+    # multi line: `<blank> 0\n`
+    # one line: `<blank>`
+    # space is relpace with <space>
+    char_list = [entry[:-1].split(" ")[0] for entry in dictionary]
+    if BLANK not in char_list:
+        char_list.insert(0, BLANK)
+    if EOS not in char_list:
+        char_list.append(EOS)
+    # for non-autoregressive maskctc model
+    if maskctc and MASKCTC not in char_list:
+        char_list.append(MASKCTC)
+    return char_list
 
 
 def read_manifest(
@@ -48,12 +77,20 @@ def read_manifest(
 
     Args:
         manifest_path ([type]): Manifest file to load and parse.
-        max_input_len ([type], optional): maximum output seq length, in seconds for raw wav, in frame numbers for feature data. Defaults to float('inf').
-        min_input_len (float, optional): minimum input seq length, in seconds for raw wav, in frame numbers for feature data. Defaults to 0.0.
-        max_output_len (float, optional): maximum input seq length, in modeling units. Defaults to 500.0.
-        min_output_len (float, optional): minimum input seq length, in modeling units. Defaults to 0.0.
-        max_output_input_ratio (float, optional): maximum output seq length/output seq length ratio. Defaults to 10.0.
-        min_output_input_ratio (float, optional): minimum output seq length/output seq length ratio. Defaults to 0.05.
+        max_input_len ([type], optional): maximum output seq length,
+            in seconds for raw wav, in frame numbers for feature data.
+            Defaults to float('inf').
+        min_input_len (float, optional): minimum input seq length,
+            in seconds for raw wav, in frame numbers for feature data.
+            Defaults to 0.0.
+        max_output_len (float, optional): maximum input seq length,
+            in modeling units. Defaults to 500.0.
+        min_output_len (float, optional): minimum input seq length,
+            in modeling units. Defaults to 0.0.
+        max_output_input_ratio (float, optional):
+            maximum output seq length/output seq length ratio. Defaults to 10.0.
+        min_output_input_ratio (float, optional):
+            minimum output seq length/output seq length ratio. Defaults to 0.05.
 
     Raises:
         IOError: If failed to parse the manifest.
@@ -63,27 +100,68 @@ def read_manifest(
     """
 
     manifest = []
-    for json_line in codecs.open(manifest_path, 'r', 'utf-8'):
-        try:
-            json_data = json.loads(json_line)
-        except Exception as e:
-            raise IOError("Error reading manifest: %s" % str(e))
-
-        feat_len = json_data["feat_shape"][
-            0] if 'feat_shape' in json_data else 1.0
-        token_len = json_data["token_shape"][
-            0] if 'token_shape' in json_data else 1.0
-        conditions = [
-            feat_len >= min_input_len,
-            feat_len <= max_input_len,
-            token_len >= min_output_len,
-            token_len <= max_output_len,
-            token_len / feat_len >= min_output_input_ratio,
-            token_len / feat_len <= max_output_input_ratio,
-        ]
-        if all(conditions):
-            manifest.append(json_data)
+    with jsonlines.open(manifest_path, 'r') as reader:
+        for json_data in reader:
+            feat_len = json_data["feat_shape"][
+                0] if 'feat_shape' in json_data else 1.0
+            token_len = json_data["token_shape"][
+                0] if 'token_shape' in json_data else 1.0
+            conditions = [
+                feat_len >= min_input_len,
+                feat_len <= max_input_len,
+                token_len >= min_output_len,
+                token_len <= max_output_len,
+                token_len / feat_len >= min_output_input_ratio,
+                token_len / feat_len <= max_output_input_ratio,
+            ]
+            if all(conditions):
+                manifest.append(json_data)
     return manifest
+
+
+# Tar File read
+TarLocalData = namedtuple('TarLocalData', ['tar2info', 'tar2object'])
+
+
+def parse_tar(file):
+    """Parse a tar file to get a tarfile object
+    and a map containing tarinfoes
+    """
+    result = {}
+    f = tarfile.open(file)
+    for tarinfo in f.getmembers():
+        result[tarinfo.name] = tarinfo
+    return f, result
+
+
+def subfile_from_tar(file, local_data=None):
+    """Get subfile object from tar.
+
+    tar:tarpath#filename
+
+    It will return a subfile object from tar file
+    and cached tar file info for next reading request.
+    """
+    tarpath, filename = file.split(':', 1)[1].split('#', 1)
+
+    if local_data is None:
+        local_data = TarLocalData(tar2info={}, tar2object={})
+
+    assert isinstance(local_data, TarLocalData)
+
+    if 'tar2info' not in local_data.__dict__:
+        local_data.tar2info = {}
+    if 'tar2object' not in local_data.__dict__:
+        local_data.tar2object = {}
+
+    if tarpath not in local_data.tar2info:
+        fobj, infos = parse_tar(tarpath)
+        local_data.tar2info[tarpath] = infos
+        local_data.tar2object[tarpath] = fobj
+    else:
+        fobj = local_data.tar2object[tarpath]
+        infos = local_data.tar2info[tarpath]
+    return fobj.extractfile(infos[filename])
 
 
 def rms_to_db(rms: float):
@@ -255,6 +333,13 @@ def load_cmvn(cmvn_file: str, filetype: str):
         cmvn = _load_json_cmvn(cmvn_file)
     elif filetype == "kaldi":
         cmvn = _load_kaldi_cmvn(cmvn_file)
+    elif filetype == "npz":
+        eps = 1e-14
+        npzfile = np.load(cmvn_file)
+        mean = np.squeeze(npzfile["mean"])
+        std = np.squeeze(npzfile["std"])
+        istd = 1 / (std + eps)
+        cmvn = [mean, istd]
     else:
         raise ValueError(f"cmvn file type no support: {filetype}")
     return cmvn[0], cmvn[1]
