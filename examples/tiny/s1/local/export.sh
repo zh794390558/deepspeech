@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+#!/bin/bash
 
 if [ $# != 3 ];then
     echo "usage: $0 config_path ckpt_prefix jit_model_path"
@@ -12,13 +12,7 @@ config_path=$1
 ckpt_path_prefix=$2
 jit_model_export_path=$3
 
-device=gpu
-if [ ngpu == 0 ];then
-    device=cpu
-fi
-
 python3 -u ${BIN_DIR}/export.py \
---device ${device} \
 --nproc ${ngpu} \
 --config ${config_path} \
 --checkpoint_path ${ckpt_path_prefix} \

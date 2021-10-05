@@ -14,12 +14,27 @@
 """Contains the text featurizer class."""
 import sentencepiece as spm
 
-from deepspeech.frontend.utility import EOS
-from deepspeech.frontend.utility import UNK
+from ..utility import EOS
+from ..utility import SPACE
+from ..utility import UNK
+from ..utility import SOS
+from ..utility import BLANK
+from ..utility import MASKCTC
+from ..utility import load_dict
+
+from deepspeech.utils.log import Log
+
+logger = Log(__name__).getlog()
+
+__all__ = ["TextFeaturizer"]
 
 
-class TextFeaturizer(object):
-    def __init__(self, unit_type, vocab_filepath, spm_model_prefix=None):
+class TextFeaturizer():
+    def __init__(self,
+                 unit_type,
+                 vocab_filepath,
+                 spm_model_prefix=None,
+                 maskctc=False):
         """Text featurizer, for processing or extracting features from text.
 
         Currently, it supports char/word/sentence-piece level tokenizing and conversion into
@@ -34,20 +49,21 @@ class TextFeaturizer(object):
         assert unit_type in ('char', 'spm', 'word')
         self.unit_type = unit_type
         self.unk = UNK
+        self.maskctc = maskctc
+
         if vocab_filepath:
-            self._vocab_dict, self._id2token, self._vocab_list = self._load_vocabulary_from_file(
-                vocab_filepath)
-            self.unk_id = self._vocab_list.index(self.unk)
-            self.eos_id = self._vocab_list.index(EOS)
+            self.vocab_dict, self._id2token, self.vocab_list, self.unk_id, self.eos_id = self._load_vocabulary_from_file(
+                vocab_filepath, maskctc)
+            self.vocab_size = len(self.vocab_list)
 
         if unit_type == 'spm':
             spm_model = spm_model_prefix + '.model'
             self.sp = spm.SentencePieceProcessor()
             self.sp.Load(spm_model)
 
-    def tokenize(self, text):
+    def tokenize(self, text, replace_space=True):
         if self.unit_type == 'char':
-            tokens = self.char_tokenize(text)
+            tokens = self.char_tokenize(text, replace_space)
         elif self.unit_type == 'word':
             tokens = self.word_tokenize(text)
         else:  # spm
@@ -67,27 +83,27 @@ class TextFeaturizer(object):
         """Convert text string to a list of token indices.
 
         Args:
-            text (str): Text to process.
-        
+            text (str): Text.
+
         Returns:
             List[int]: List of token indices.
         """
         tokens = self.tokenize(text)
         ids = []
         for token in tokens:
-            token = token if token in self._vocab_dict else self.unk
-            ids.append(self._vocab_dict[token])
+            token = token if token in self.vocab_dict else self.unk
+            ids.append(self.vocab_dict[token])
         return ids
 
     def defeaturize(self, idxs):
         """Convert a list of token indices to text string,
-        ignore index after eos_id. 
+        ignore index after eos_id.
 
         Args:
             idxs (List[int]): List of token indices.
 
         Returns:
-            str: Text to process.
+            str: Text.
         """
         tokens = []
         for idx in idxs:
@@ -97,43 +113,22 @@ class TextFeaturizer(object):
         text = self.detokenize(tokens)
         return text
 
-    @property
-    def vocab_size(self):
-        """Return the vocabulary size.
-
-        :return: Vocabulary size.
-        :rtype: int
-        """
-        return len(self._vocab_list)
-
-    @property
-    def vocab_list(self):
-        """Return the vocabulary in list.
-
-        Returns:
-            List[str]: tokens.
-        """
-        return self._vocab_list
-
-    @property
-    def vocab_dict(self):
-        """Return the vocabulary in dict.
-
-        Returns:
-            Dict[str, int]: token str -> int
-        """
-        return self._vocab_dict
-
-    def char_tokenize(self, text):
+    def char_tokenize(self, text, replace_space=True):
         """Character tokenizer.
 
         Args:
             text (str): text string.
+            replace_space (bool): False only used by build_vocab.py.
 
         Returns:
             List[str]: tokens.
         """
-        return list(text.strip())
+        text = text.strip()
+        if replace_space:
+            text_list = [SPACE if item == " " else item for item in list(text)]
+        else:
+            text_list = list(text)
+        return text_list
 
     def char_detokenize(self, tokens):
         """Character detokenizer.
@@ -144,6 +139,7 @@ class TextFeaturizer(object):
         Returns:
            str: text string.
         """
+        tokens = tokens.replace(SPACE, " ")
         return "".join(tokens)
 
     def word_tokenize(self, text):
@@ -206,14 +202,28 @@ class TextFeaturizer(object):
 
         return decode(tokens)
 
-    def _load_vocabulary_from_file(self, vocab_filepath):
+    def _load_vocabulary_from_file(self, vocab_filepath: str, maskctc: bool):
         """Load vocabulary from file."""
-        vocab_lines = []
-        with open(vocab_filepath, 'r', encoding='utf-8') as file:
-            vocab_lines.extend(file.readlines())
-        vocab_list = [line[:-1] for line in vocab_lines]
+        vocab_list = load_dict(vocab_filepath, maskctc)
+        assert vocab_list is not None
+        logger.info(f"Vocab: {vocab_list}")
+
         id2token = dict(
             [(idx, token) for (idx, token) in enumerate(vocab_list)])
         token2id = dict(
             [(token, idx) for (idx, token) in enumerate(vocab_list)])
-        return token2id, id2token, vocab_list
+
+        blank_id = vocab_list.index(BLANK) if BLANK in vocab_list else -1
+        maskctc_id = vocab_list.index(MASKCTC) if MASKCTC in vocab_list else -1
+        unk_id = vocab_list.index(UNK) if UNK in vocab_list else -1
+        eos_id = vocab_list.index(EOS) if EOS in vocab_list else -1
+        sos_id = vocab_list.index(SOS) if SOS in vocab_list else -1
+        space_id = vocab_list.index(SPACE) if SPACE in vocab_list else -1
+        
+        logger.info(f"UNK id: {unk_id}")
+        logger.info(f"EOS id: {eos_id}")
+        logger.info(f"SOS id: {sos_id}")
+        logger.info(f"SPACE id: {space_id}")
+        logger.info(f"BLANK id: {blank_id}")
+        logger.info(f"MASKCTC id: {maskctc_id}")
+        return token2id, id2token, vocab_list, unk_id, eos_id

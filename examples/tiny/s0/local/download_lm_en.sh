@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+#!/bin/bash
 
 . ${MAIN_ROOT}/utils/utility.sh
 
@@ -8,6 +8,11 @@ mkdir -p ${DIR}
 URL=https://deepspeech.bj.bcebos.com/en_lm/common_crawl_00.prune01111.trie.klm
 MD5="099a601759d467cd0a8523ff939819c5"
 TARGET=${DIR}/common_crawl_00.prune01111.trie.klm
+
+if [ -e $TARGET ];then
+    echo "$TARGET exists."
+    exit 0
+fi
 
 echo "Download language model ..."
 download $URL $MD5 $TARGET

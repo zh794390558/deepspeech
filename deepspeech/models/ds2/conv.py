@@ -26,9 +26,9 @@ __all__ = ['ConvStack', "conv_output_size"]
 def conv_output_size(I, F, P, S):
     # https://stanford.edu/~shervine/teaching/cs-230/cheatsheet-convolutional-neural-networks#hyperparameters
     # Output size after Conv:
-    #   By noting I the length of the input volume size, 
-    #   F the length of the filter, 
-    #   P the amount of zero padding, 
+    #   By noting I the length of the input volume size,
+    #   F the length of the filter,
+    #   P the amount of zero padding,
     #   S the stride,
     #   then the output size O of the feature map along that dimension is given by:
     #       O = (I - F + Pstart + Pend) // S + 1
@@ -45,7 +45,7 @@ def conv_output_size(I, F, P, S):
 # https://fomoro.com/research/article/receptive-field-calculator
 # https://stanford.edu/~shervine/teaching/cs-230/cheatsheet-convolutional-neural-networks#hyperparameters
 # https://distill.pub/2019/computing-receptive-fields/
-# Rl-1 = Sl * Rl + (Kl - Sl) 
+# Rl-1 = Sl * Rl + (Kl - Sl)
 
 
 class ConvBn(nn.Layer):
@@ -58,8 +58,8 @@ class ConvBn(nn.Layer):
     :type num_channels_in: int
     :param num_channels_out: Number of output channels.
     :type num_channels_out: int
-    :param stride: The x dimension of the stride. Or input a tuple for two 
-                image dimension. 
+    :param stride: The x dimension of the stride. Or input a tuple for two
+                image dimension.
     :type stride: int|tuple|list
     :param padding: The x dimension of the padding. Or input a tuple for two
                     image dimension.
@@ -114,7 +114,7 @@ class ConvBn(nn.Layer):
         masks = make_non_pad_mask(x_len)  #[B, T]
         masks = masks.unsqueeze(1).unsqueeze(1)  # [B, 1, 1, T]
         # TODO(Hui Zhang): not support bool multiply
-        masks = masks.type_as(x)
+        masks = masks.astype(x.dtype)
         x = x.multiply(masks)
 
         return x, x_len

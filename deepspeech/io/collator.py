@@ -23,7 +23,7 @@ logger = Log(__name__).getlog()
 
 
 class SpeechCollator():
-    def __init__(self, keep_transcription_text=True):
+    def __init__(self, keep_transcription_text=True, return_utts=False):
         """
         Padding audio features with zeros to make them have the same shape (or
         a user-defined shape) within one bach.
@@ -31,6 +31,7 @@ class SpeechCollator():
         if ``keep_transcription_text`` is False, text is token ids else is raw string.
         """
         self._keep_transcription_text = keep_transcription_text
+        self.return_utts = return_utts
 
     def __call__(self, batch):
         """batch examples
@@ -51,7 +52,9 @@ class SpeechCollator():
         audio_lens = []
         texts = []
         text_lens = []
-        for audio, text in batch:
+        utts = []
+        for utt, audio, text in batch:
+            utts.append(utt)
             # audio
             audios.append(audio.T)  # [T, D]
             audio_lens.append(audio.shape[1])
@@ -75,4 +78,7 @@ class SpeechCollator():
         padded_texts = pad_sequence(
             texts, padding_value=IGNORE_ID).astype(np.int64)
         text_lens = np.array(text_lens).astype(np.int64)
-        return padded_audios, audio_lens, padded_texts, text_lens
+        if self.return_utts:
+            return padded_audios, audio_lens, padded_texts, text_lens, utts
+        else:
+            return padded_audios, audio_lens, padded_texts, text_lens

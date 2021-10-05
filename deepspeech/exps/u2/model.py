@@ -73,11 +73,11 @@ class U2Trainer(Trainer):
     def __init__(self, config, args):
         super().__init__(config, args)
 
-    def train_batch(self, batch_index, batch_data, msg):
+    def train_batch(self, batch_index, batch, msg):
         train_conf = self.config.training
         start = time.time()
 
-        loss, attention_loss, ctc_loss = self.model(*batch_data)
+        loss, attention_loss, ctc_loss = self.model(*batch)
         # loss div by `batch_size * accum_grad`
         loss /= train_conf.accum_grad
         loss.backward()
@@ -219,7 +219,7 @@ class U2Trainer(Trainer):
         config.data.augmentation_config = ""
         dev_dataset = ManifestDataset.from_config(config)
 
-        collate_fn = SpeechCollator(keep_transcription_text=False)
+        collate_fn = SpeechCollator(keep_transcription_text=False, return_utts=False)
         if self.parallel:
             batch_sampler = SortagradDistributedBatchSampler(
                 train_dataset,
@@ -269,7 +269,7 @@ class U2Trainer(Trainer):
             batch_size=config.decoding.batch_size,
             shuffle=False,
             drop_last=False,
-            collate_fn=SpeechCollator(keep_transcription_text=True))
+            collate_fn=SpeechCollator(keep_transcription_text=True, return_utts=True))
         logger.info("Setup train/valid/test Dataloader!")
 
     def setup_model(self):
@@ -345,7 +345,7 @@ class U2Tester(U2Trainer):
                 decoding_chunk_size=-1,  # decoding chunk size. Defaults to -1.
                 # <0: for decoding, use full chunk.
                 # >0: for decoding, use fixed chunk size as set.
-                # 0: used for training, it's prohibited here. 
+                # 0: used for training, it's prohibited here.
                 num_decoding_left_chunks=-1,  # number of left chunks for decoding. Defaults to -1.
                 simulate_streaming=False,  # simulate streaming inference. Defaults to False.
             ))
@@ -428,7 +428,7 @@ class U2Tester(U2Trainer):
         num_time = 0.0
         with open(self.args.result_file, 'w') as fout:
             for i, batch in enumerate(self.test_loader):
-                metrics = self.compute_metrics(*batch, fout=fout)
+                metrics = self.compute_metrics(*batch[:-1], fout=fout)
                 num_frames += metrics['num_frames']
                 num_time += metrics["decode_time"]
                 errors_sum += metrics['errors_sum']
@@ -476,12 +476,12 @@ class U2Tester(U2Trainer):
             })
             f.write(data + '\n')
 
-    def run_test(self):
-        self.resume_or_scratch()
-        try:
-            self.test()
-        except KeyboardInterrupt:
-            sys.exit(-1)
+    # def run_test(self):
+    #     self.resume_or_scratch()
+    #     try:
+    #         self.test()
+    #     except KeyboardInterrupt:
+    #         sys.exit(-1)
 
     def load_inferspec(self):
         """infer model and input spec.
@@ -512,36 +512,36 @@ class U2Tester(U2Trainer):
         logger.info(f"Export code: {static_model.forward.code}")
         paddle.jit.save(static_model, self.args.export_path)
 
-    def run_export(self):
-        try:
-            self.export()
-        except KeyboardInterrupt:
-            sys.exit(-1)
+    # def run_export(self):
+    #     try:
+    #         self.export()
+    #     except KeyboardInterrupt:
+    #         sys.exit(-1)
 
-    def setup(self):
-        """Setup the experiment.
-        """
-        paddle.set_device(self.args.device)
+    # def setup(self):
+    #     """Setup the experiment.
+    #     """
+    #     paddle.set_device(self.args.device)
 
-        self.setup_output_dir()
-        self.setup_checkpointer()
+    #     self.setup_output_dir()
+    #     self.setup_checkpointer()
 
-        self.setup_dataloader()
-        self.setup_model()
+    #     self.setup_dataloader()
+    #     self.setup_model()
 
-        self.iteration = 0
-        self.epoch = 0
+    #     self.iteration = 0
+    #     self.epoch = 0
 
-    def setup_output_dir(self):
-        """Create a directory used for output.
-        """
-        # output dir
-        if self.args.output:
-            output_dir = Path(self.args.output).expanduser()
-            output_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            output_dir = Path(
-                self.args.checkpoint_path).expanduser().parent.parent
-            output_dir.mkdir(parents=True, exist_ok=True)
+    # def setup_output_dir(self):
+    #     """Create a directory used for output.
+    #     """
+    #     # output dir
+    #     if self.args.output:
+    #         output_dir = Path(self.args.output).expanduser()
+    #         output_dir.mkdir(parents=True, exist_ok=True)
+    #     else:
+    #         output_dir = Path(
+    #             self.args.checkpoint_path).expanduser().parent.parent
+    #         output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.output_dir = output_dir
+    #     self.output_dir = output_dir
