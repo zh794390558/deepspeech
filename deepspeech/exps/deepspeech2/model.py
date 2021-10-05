@@ -25,14 +25,15 @@ from deepspeech.io.collator import SpeechCollator
 from deepspeech.io.dataset import ManifestDataset
 from deepspeech.io.sampler import SortagradBatchSampler
 from deepspeech.io.sampler import SortagradDistributedBatchSampler
-from deepspeech.models.deepspeech2 import DeepSpeech2InferModel
-from deepspeech.models.deepspeech2 import DeepSpeech2Model
+from deepspeech.models.ds2 import DeepSpeech2InferModel
+from deepspeech.models.ds2 import DeepSpeech2Model
 from deepspeech.training.gradclip import ClipGradByGlobalNormWithLog
 from deepspeech.training.trainer import Trainer
 from deepspeech.utils import error_rate
 from deepspeech.utils import layer_tools
 from deepspeech.utils import mp_tools
 from deepspeech.utils.log import Log
+from deepspeech.utils.utility import UpdateConfig
 
 logger = Log(__name__).getlog()
 
@@ -98,15 +99,27 @@ class DeepSpeech2Trainer(Trainer):
         return total_loss, num_seen_utts
 
     def setup_model(self):
-        config = self.config
-        model = DeepSpeech2Model(
-            feat_size=self.train_loader.dataset.feature_size,
-            dict_size=self.train_loader.dataset.vocab_size,
-            num_conv_layers=config.model.num_conv_layers,
-            num_rnn_layers=config.model.num_rnn_layers,
-            rnn_size=config.model.rnn_layer_size,
-            use_gru=config.model.use_gru,
-            share_rnn_weights=config.model.share_rnn_weights)
+        #config = self.config
+        #model = DeepSpeech2Model(
+        #    feat_size=self.train_loader.dataset.feature_size,
+        #    dict_size=self.train_loader.dataset.vocab_size,
+        #    num_conv_layers=config.model.num_conv_layers,
+        #    num_rnn_layers=config.model.num_rnn_layers,
+        #    rnn_size=config.model.rnn_layer_size,
+        #    use_gru=config.model.use_gru,
+        #    share_rnn_weights=config.model.share_rnn_weights)
+
+        config = self.config.clone()
+        with UpdateConfig(config):
+            config.model.feat_size = self.train_loader.dataset.feature_size
+            config.model.dict_size = self.train_loader.dataset.vocab_size
+
+        if self.args.model_type == 'offline':
+            model = DeepSpeech2Model.from_config(config.model)
+        elif self.args.model_type == 'online':
+            model = DeepSpeech2ModelOnline.from_config(config.model)
+        else:
+            raise Exception("wrong model type")
 
         if self.parallel:
             model = paddle.DataParallel(model)

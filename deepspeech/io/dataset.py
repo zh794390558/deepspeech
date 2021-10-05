@@ -63,7 +63,7 @@ class ManifestDataset(Dataset):
                 n_fft=None,  # fft points
                 max_freq=None,  # None for samplerate/2
                 raw_wav=True,  # use raw_wav or kaldi feature
-                specgram_type='linear',  # 'linear', 'mfcc', 'fbank'
+                spectrum_type='linear',  # 'linear', 'mfcc', 'fbank'
                 feat_dim=0,  # 'mfcc', 'fbank'
                 delta_delta=False,  # 'mfcc', 'fbank'
                 dither=1.0,  # feature dither
@@ -124,7 +124,7 @@ class ManifestDataset(Dataset):
             n_fft=config.data.n_fft,
             max_freq=config.data.max_freq,
             target_sample_rate=config.data.target_sample_rate,
-            specgram_type=config.data.specgram_type,
+            spectrum_type=config.data.spectrum_type,
             feat_dim=config.data.feat_dim,
             delta_delta=config.data.delta_delta,
             dither=config.data.dither,
@@ -152,7 +152,7 @@ class ManifestDataset(Dataset):
                  n_fft=None,
                  max_freq=None,
                  target_sample_rate=16000,
-                 specgram_type='linear',
+                 spectrum_type='linear',
                  feat_dim=None,
                  delta_delta=False,
                  dither=1.0,
@@ -180,7 +180,7 @@ class ManifestDataset(Dataset):
             n_fft (int, optional): fft points for rfft. Defaults to None.
             max_freq (int, optional): max cut freq. Defaults to None.
             target_sample_rate (int, optional): target sample rate which used for training. Defaults to 16000.
-            specgram_type (str, optional): 'linear', 'mfcc' or 'fbank'. Defaults to 'linear'.
+            spectrum_type (str, optional): 'linear', 'mfcc' or 'fbank'. Defaults to 'linear'.
             feat_dim (int, optional): audio feature dim, using by 'mfcc' or 'fbank'. Defaults to None.
             delta_delta (bool, optional): audio feature with delta-delta, using by 'fbank' or 'mfcc'. Defaults to False.
             use_dB_normalization (bool, optional): do dB normalization. Defaults to True.
@@ -200,7 +200,7 @@ class ManifestDataset(Dataset):
             unit_type=unit_type,
             vocab_filepath=vocab_filepath,
             spm_model_prefix=spm_model_prefix,
-            specgram_type=specgram_type,
+            spectrum_type=spectrum_type,
             feat_dim=feat_dim,
             delta_delta=delta_delta,
             stride_ms=stride_ms,

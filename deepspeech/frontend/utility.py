@@ -32,6 +32,7 @@ IGNORE_ID = -1
 SOS = "<sos/eos>"
 EOS = SOS
 UNK = "<unk>"
+SPACE = " "
 BLANK = "<blank>"
 
 
@@ -101,7 +102,7 @@ def rms_to_dbfs(rms: float):
     """Root Mean Square to dBFS.
     https://fireattack.wordpress.com/2017/02/06/replaygain-loudness-normalization-and-applications/
     Audio is mix of sine wave, so 1 amp sine wave's Full scale is 0.7071, equal to -3.0103dB.
-   
+
     dB = dBFS + 3.0103
     dBFS = db - 3.0103
     e.g. 0 dB = -3.0103 dBFS
@@ -116,26 +117,26 @@ def rms_to_dbfs(rms: float):
 
 
 def max_dbfs(sample_data: np.ndarray):
-    """Peak dBFS based on the maximum energy sample. 
+    """Peak dBFS based on the maximum energy sample.
 
     Args:
         sample_data ([np.ndarray]): float array, [-1, 1].
 
     Returns:
-        float: dBFS 
+        float: dBFS
     """
     # Peak dBFS based on the maximum energy sample. Will prevent overdrive if used for normalization.
     return rms_to_dbfs(max(abs(np.min(sample_data)), abs(np.max(sample_data))))
 
 
 def mean_dbfs(sample_data):
-    """Peak dBFS based on the RMS energy. 
+    """Peak dBFS based on the RMS energy.
 
     Args:
         sample_data ([np.ndarray]): float array, [-1, 1].
 
     Returns:
-        float: dBFS 
+        float: dBFS
     """
     return rms_to_dbfs(
         math.sqrt(np.mean(np.square(sample_data, dtype=np.float64))))
@@ -155,7 +156,7 @@ def gain_db_to_ratio(gain_db: float):
 
 def normalize_audio(sample_data: np.ndarray, dbfs: float=-3.0103):
     """Nomalize audio to dBFS.
-    
+
     Args:
         sample_data (np.ndarray): input wave samples, [-1, 1].
         dbfs (float, optional): target dBFS. Defaults to -3.0103.

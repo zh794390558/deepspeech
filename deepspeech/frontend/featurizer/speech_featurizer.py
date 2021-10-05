@@ -27,16 +27,16 @@ class SpeechFeaturizer(object):
 
     :param vocab_filepath: Filepath to load vocabulary for token indices
                            conversion.
-    :type specgram_type: str
-    :param specgram_type: Specgram feature type. Options: 'linear', 'mfcc'.
-    :type specgram_type: str
+    :type spectrum_type: str
+    :param spectrum_type: Specgram feature type. Options: 'linear', 'mfcc'.
+    :type spectrum_type: str
     :param stride_ms: Striding size (in milliseconds) for generating frames.
     :type stride_ms: float
     :param window_ms: Window size (in milliseconds) for generating frames.
     :type window_ms: float
-    :param max_freq: When specgram_type is 'linear', only FFT bins
+    :param max_freq: When spectrum_type is 'linear', only FFT bins
                      corresponding to frequencies between [0, max_freq] are
-                     returned; when specgram_type is 'mfcc', max_freq is the
+                     returned; when spectrum_type is 'mfcc', max_freq is the
                      highest band edge of mel filters.
     :types max_freq: None|float
     :param target_sample_rate: Speech are resampled (if upsampling or
@@ -54,7 +54,7 @@ class SpeechFeaturizer(object):
                  unit_type,
                  vocab_filepath,
                  spm_model_prefix=None,
-                 specgram_type='linear',
+                 spectrum_type='linear',
                  feat_dim=None,
                  delta_delta=False,
                  stride_ms=10.0,
@@ -66,7 +66,7 @@ class SpeechFeaturizer(object):
                  target_dB=-20,
                  dither=1.0):
         self._audio_featurizer = AudioFeaturizer(
-            specgram_type=specgram_type,
+            spectrum_type=spectrum_type,
             feat_dim=feat_dim,
             delta_delta=delta_delta,
             stride_ms=stride_ms,

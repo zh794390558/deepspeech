@@ -45,7 +45,7 @@ class TextFeaturizer(object):
             self.sp = spm.SentencePieceProcessor()
             self.sp.Load(spm_model)
 
-    def tokenize(self, text):
+    def tokenize(self, text, replace_space=True):
         if self.unit_type == 'char':
             tokens = self.char_tokenize(text)
         elif self.unit_type == 'word':
@@ -68,7 +68,7 @@ class TextFeaturizer(object):
 
         Args:
             text (str): Text to process.
-        
+
         Returns:
             List[int]: List of token indices.
         """
@@ -81,7 +81,7 @@ class TextFeaturizer(object):
 
     def defeaturize(self, idxs):
         """Convert a list of token indices to text string,
-        ignore index after eos_id. 
+        ignore index after eos_id.
 
         Args:
             idxs (List[int]): List of token indices.

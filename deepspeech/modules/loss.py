@@ -23,7 +23,7 @@ __all__ = ['CTCLoss', "LabelSmoothingLoss"]
 
 
 class CTCLoss(nn.Layer):
-    def __init__(self, blank=0, reduction='sum', batch_average=False):
+    def __init__(self, blank=0, reduction='sum', batch_average=False, grad_norm_type=None):
         super().__init__()
         # last token id as blank id
         self.loss = nn.CTCLoss(blank=blank, reduction=reduction)
@@ -89,8 +89,8 @@ class LabelSmoothingLoss(nn.Layer):
             size (int): the number of class
             padding_idx (int): padding class id which will be ignored for loss
             smoothing (float): smoothing rate (0.0 means the conventional CE)
-            normalize_length (bool): 
-                True, normalize loss by sequence length; 
+            normalize_length (bool):
+                True, normalize loss by sequence length;
                 False, normalize loss by batch size.
                 Defaults to False.
         """
@@ -107,7 +107,7 @@ class LabelSmoothingLoss(nn.Layer):
         The model outputs and data labels tensors are flatten to
         (batch*seqlen, class) shape and a mask is applied to the
         padding part which should not be calculated for loss.
-        
+
         Args:
             x (paddle.Tensor): prediction (batch, seqlen, class)
             target (paddle.Tensor):

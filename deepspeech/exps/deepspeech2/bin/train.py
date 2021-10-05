@@ -27,7 +27,7 @@ def main_sp(config, args):
 
 
 def main(config, args):
-    if args.device == "gpu" and args.nprocs > 1:
+    if args.nprocs > 0:
         dist.spawn(main_sp, args=(config, args), nprocs=args.nprocs)
     else:
         main_sp(config, args)
@@ -35,11 +35,14 @@ def main(config, args):
 
 if __name__ == "__main__":
     parser = default_argument_parser()
+    parser.add_argument(
+        "--model_type", type=str, default='offline', help='offline/online')
     args = parser.parse_args()
+    print("model_type:{}".format(args.model_type))
     print_arguments(args, globals())
 
     # https://yaml.org/type/float.html
-    config = get_cfg_defaults()
+    config = get_cfg_defaults(args.model_type)
     if args.config:
         config.merge_from_file(args.config)
     if args.opts:
