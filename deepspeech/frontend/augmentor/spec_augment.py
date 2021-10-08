@@ -25,10 +25,10 @@ class SpecAugmentor(AugmentorBase):
 
     SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition
         https://arxiv.org/abs/1904.08779
-        
+
     SpecAugment on Large Scale Datasets
         https://arxiv.org/abs/1912.05533
-    
+
     """
 
     def __init__(self,
@@ -41,7 +41,8 @@ class SpecAugmentor(AugmentorBase):
                  W=40,
                  adaptive_number_ratio=0,
                  adaptive_size_ratio=0,
-                 max_n_time_masks=20):
+                 max_n_time_masks=20,
+                 **kwargs):
         """SpecAugment class.
         Args:
             rng (random.Random): random generator object.
@@ -121,7 +122,7 @@ class SpecAugmentor(AugmentorBase):
     def time_mask(self):
         return self._time_mask
 
-    def time_warp(xs, W=40):
+    def time_warp(self, xs, W=40):
         raise NotImplementedError
 
     def mask_freq(self, xs, replace_with_zero=False):

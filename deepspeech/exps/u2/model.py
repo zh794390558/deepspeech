@@ -24,6 +24,7 @@ import numpy as np
 import paddle
 from paddle import distributed as dist
 from paddle.io import DataLoader
+from paddle.io import DistributedBatchSampler
 from yacs.config import CfgNode
 
 from deepspeech.io.collator import SpeechCollator
@@ -162,8 +163,10 @@ class U2Trainer(Trainer):
             self.save(tag='init')
 
         self.lr_scheduler.step(self.iteration)
-        if self.parallel:
-            self.train_loader.batch_sampler.set_epoch(self.epoch)
+        if hasattr(self.train_loader, "batch_sampler"):
+            batch_sampler = self.train_loader.batch_sampler
+            if isinstance(batch_sampler, DistributedBatchSampler):
+                batch_sampler.set_epoch(self.epoch)
 
         logger.info(f"Train Total Examples: {len(self.train_loader.dataset)}")
         while self.epoch < self.config.training.n_epoch:
@@ -476,13 +479,6 @@ class U2Tester(U2Trainer):
             })
             f.write(data + '\n')
 
-    # def run_test(self):
-    #     self.resume_or_scratch()
-    #     try:
-    #         self.test()
-    #     except KeyboardInterrupt:
-    #         sys.exit(-1)
-
     def load_inferspec(self):
         """infer model and input spec.
 
@@ -491,7 +487,7 @@ class U2Tester(U2Trainer):
             List[paddle.static.InputSpec]: input spec.
         """
         from deepspeech.models.u2 import U2InferModel
-        infer_model = U2InferModel.from_pretrained(self.test_loader.dataset,
+        infer_model = U2InferModel.from_pretrained(self.test_loader,
                                                    self.config.model.clone(),
                                                    self.args.checkpoint_path)
         feat_dim = self.test_loader.dataset.feature_size
@@ -511,37 +507,3 @@ class U2Tester(U2Trainer):
         static_model = paddle.jit.to_static(infer_model, input_spec=input_spec)
         logger.info(f"Export code: {static_model.forward.code}")
         paddle.jit.save(static_model, self.args.export_path)
-
-    # def run_export(self):
-    #     try:
-    #         self.export()
-    #     except KeyboardInterrupt:
-    #         sys.exit(-1)
-
-    # def setup(self):
-    #     """Setup the experiment.
-    #     """
-    #     paddle.set_device(self.args.device)
-
-    #     self.setup_output_dir()
-    #     self.setup_checkpointer()
-
-    #     self.setup_dataloader()
-    #     self.setup_model()
-
-    #     self.iteration = 0
-    #     self.epoch = 0
-
-    # def setup_output_dir(self):
-    #     """Create a directory used for output.
-    #     """
-    #     # output dir
-    #     if self.args.output:
-    #         output_dir = Path(self.args.output).expanduser()
-    #         output_dir.mkdir(parents=True, exist_ok=True)
-    #     else:
-    #         output_dir = Path(
-    #             self.args.checkpoint_path).expanduser().parent.parent
-    #         output_dir.mkdir(parents=True, exist_ok=True)
-
-    #     self.output_dir = output_dir

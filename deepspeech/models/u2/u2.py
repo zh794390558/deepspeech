@@ -911,8 +911,10 @@ class U2Model(U2BaseModel):
             DeepSpeech2Model: The model built from pretrained result.
         """
         with UpdateConfig(config):
-            config.input_dim = dataloader.collate_fn.feature_size
-            config.output_dim = dataloader.collate_fn.vocab_size
+            #config.input_dim = dataloader.collate_fn.feature_size
+            #config.output_dim = dataloader.collate_fn.vocab_size
+            config.input_dim = dataloader.dataset.feature_size
+            config.output_dim = dataloader.dataset.vocab_size
 
         model = cls.from_config(config)
 

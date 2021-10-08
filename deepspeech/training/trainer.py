@@ -17,6 +17,7 @@ from pathlib import Path
 
 import paddle
 from paddle import distributed as dist
+from paddle.io import DistributedBatchSampler
 from tensorboardX import SummaryWriter
 
 from deepspeech.utils import mp_tools
@@ -179,8 +180,10 @@ class Trainer():
         """Reset the train loader seed and increment `epoch`.
         """
         self.epoch += 1
-        if self.parallel:
-            self.train_loader.batch_sampler.set_epoch(self.epoch)
+        if hasattr(self.train_loader, "batch_sampler"):
+            batch_sampler = self.train_loader.batch_sampler
+            if isinstance(batch_sampler, DistributedBatchSampler):
+                batch_sampler.set_epoch(self.epoch)
 
     def train(self):
         """The training process control by epoch."""
@@ -190,8 +193,10 @@ class Trainer():
             self.save(tag='init')
 
         self.lr_scheduler.step(self.iteration)
-        if self.parallel:
-            self.train_loader.batch_sampler.set_epoch(self.epoch)
+        if hasattr(self.train_loader, "batch_sampler"):
+            batch_sampler = self.train_loader.batch_sampler
+            if isinstance(batch_sampler, DistributedBatchSampler):
+                batch_sampler.set_epoch(self.epoch)
 
         logger.info(f"Train Total Examples: {len(self.train_loader.dataset)}")
         while self.epoch < self.config.training.n_epoch:
