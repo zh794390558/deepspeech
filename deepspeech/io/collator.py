@@ -56,8 +56,8 @@ class SpeechCollator():
         for utt, audio, text in batch:
             utts.append(utt)
             # audio
-            audios.append(audio.T)  # [T, D]
-            audio_lens.append(audio.shape[1])
+            audios.append(audio)  # [T, D]
+            audio_lens.append(audio.shape[0])
             # text
             # for training, text is token ids
             # else text is string, convert to unicode ord
