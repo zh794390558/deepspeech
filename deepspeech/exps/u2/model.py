@@ -222,7 +222,8 @@ class U2Trainer(Trainer):
         config.data.augmentation_config = ""
         dev_dataset = ManifestDataset.from_config(config)
 
-        collate_fn = SpeechCollator(keep_transcription_text=False, return_utts=False)
+        collate_fn = SpeechCollator(
+            keep_transcription_text=False, return_utts=False)
         if self.parallel:
             batch_sampler = SortagradDistributedBatchSampler(
                 train_dataset,
@@ -272,7 +273,8 @@ class U2Trainer(Trainer):
             batch_size=config.decoding.batch_size,
             shuffle=False,
             drop_last=False,
-            collate_fn=SpeechCollator(keep_transcription_text=True, return_utts=True))
+            collate_fn=SpeechCollator(
+                keep_transcription_text=True, return_utts=True))
         logger.info("Setup train/valid/test Dataloader!")
 
     def setup_model(self):

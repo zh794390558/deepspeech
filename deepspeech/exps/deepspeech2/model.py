@@ -187,7 +187,8 @@ class DeepSpeech2Trainer(Trainer):
                 sortagrad=config.data.sortagrad,
                 shuffle_method=config.data.shuffle_method)
 
-        collate_fn = SpeechCollator(keep_transcription_text=False, return_utts=False)
+        collate_fn = SpeechCollator(
+            keep_transcription_text=False, return_utts=False)
         self.train_loader = DataLoader(
             train_dataset,
             batch_sampler=batch_sampler,
@@ -220,7 +221,8 @@ class DeepSpeech2Trainer(Trainer):
             batch_size=config.decoding.batch_size,
             shuffle=False,
             drop_last=False,
-            collate_fn=SpeechCollator(keep_transcription_text=True, return_utts=True))
+            collate_fn=SpeechCollator(
+                keep_transcription_text=True, return_utts=True))
         logger.info("Setup test Dataloader!")
 
 

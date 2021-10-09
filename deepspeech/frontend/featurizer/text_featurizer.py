@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Contains the text featurizer class."""
-import sentencepiece as spm
 from pprint import pformat
 
+import sentencepiece as spm
+
+from ..utility import BLANK
 from ..utility import EOS
+from ..utility import load_dict
+from ..utility import MASKCTC
+from ..utility import SOS
 from ..utility import SPACE
 from ..utility import UNK
-from ..utility import SOS
-from ..utility import BLANK
-from ..utility import MASKCTC
-from ..utility import load_dict
-
 from deepspeech.utils.log import Log
 
 logger = Log(__name__).getlog()

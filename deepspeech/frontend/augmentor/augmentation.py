@@ -13,9 +13,9 @@
 # limitations under the License.
 """Contains the data augmentation pipeline."""
 import json
-from pprint import pformat
 from collections.abc import Sequence
 from inspect import signature
+from pprint import pformat
 
 import numpy as np
 
@@ -112,7 +112,8 @@ class AugmentationPipeline():
             'audio')
         self._spec_augmentors, self._spec_rates = self._parse_pipeline_from(
             'feature')
-        logger.info(f"Augmentation: {pformat(list(zip(self._augmentors, self._rates)))}")
+        logger.info(
+            f"Augmentation: {pformat(list(zip(self._augmentors, self._rates)))}")
 
     def __call__(self, xs, uttid_list=None, **kwargs):
         if not isinstance(xs, Sequence):
@@ -203,7 +204,7 @@ class AugmentationPipeline():
             aug_confs = all_confs
         else:
             raise ValueError(f"Not support: {aug_type}")
-            
+
         augmentors = [
             self._get_augmentor(config["type"], config["params"])
             for config in aug_confs

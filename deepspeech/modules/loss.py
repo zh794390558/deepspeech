@@ -23,7 +23,11 @@ __all__ = ['CTCLoss', "LabelSmoothingLoss"]
 
 
 class CTCLoss(nn.Layer):
-    def __init__(self, blank=0, reduction='sum', batch_average=False, grad_norm_type=None):
+    def __init__(self,
+                 blank=0,
+                 reduction='sum',
+                 batch_average=False,
+                 grad_norm_type=None):
         super().__init__()
         # last token id as blank id
         self.loss = nn.CTCLoss(blank=blank, reduction=reduction)
