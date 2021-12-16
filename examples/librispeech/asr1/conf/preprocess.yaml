@@ -1,4 +1,10 @@
 process:
+  - type: speed_perturbation_sox
+    fs: 16000
+    lower: 0.9
+    upper: 1.1
+    keep_length: false
+    batch: true
   # extract kaldi fbank from PCM
   - type: fbank_kaldi
     fs: 16000

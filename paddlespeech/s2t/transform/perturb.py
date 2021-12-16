@@ -16,8 +16,26 @@ import librosa
 import numpy
 import scipy
 import soundfile
+import numpy as np
+
+try:
+    import soxbindings as sox
+except ImportError:
+    try:
+        from paddlespeech.s2t.utils import dynamic_pip_install
+        package = "sox"
+        dynamic_pip_install.install(package)
+        package = "soxbindings"
+        dynamic_pip_install.install(package)
+        import soxbindings as sox
+    except Exception:
+        raise RuntimeError(
+            "Can not install soxbindings on your system.")
 
 from paddlespeech.s2t.io.reader import SoundHDF5File
+from paddlespeech.s2t.utils.log import Log
+
+logger = Log(__name__).getlog()
 
 
 class SpeedPerturbation():
@@ -63,6 +81,7 @@ class SpeedPerturbation():
                     self.utt2ratio[utt] = ratio
         else:
             self.utt2ratio = None
+            self.accept_uttid = False
             # The ratio is given on runtime randomly
             self.lower = lower
             self.upper = upper
@@ -139,26 +158,14 @@ class SpeedPerturbationSox():
             upper=1.1,
             utt2ratio=None,
             keep_length=True,
-            sr=16000,
-            seed=None, ):
-        self.sr = sr
+            fs=16000,
+            seed=None,
+            batch=False):
+        self.fs = fs
         self.keep_length = keep_length
+        # when in `batch` mode, need call `sample` before process batch data
+        self.batch_mode = batch
         self.state = numpy.random.RandomState(seed)
-
-        try:
-            import soxbindings as sox
-        except ImportError:
-            try:
-                from paddlespeech.s2t.utils import dynamic_pip_install
-                package = "sox"
-                dynamic_pip_install.install(package)
-                package = "soxbindings"
-                dynamic_pip_install.install(package)
-                import soxbindings as sox
-            except Exception:
-                raise RuntimeError(
-                    "Can not install soxbindings on your system.")
-        self.sox = sox
 
         if utt2ratio is not None:
             self.utt2ratio = {}
@@ -175,9 +182,12 @@ class SpeedPerturbationSox():
                     self.utt2ratio[utt] = ratio
         else:
             self.utt2ratio = None
+            self.accept_uttid = False
             # The ratio is given on runtime randomly
             self.lower = lower
             self.upper = upper
+            if self.batch_mode:
+                self.sample()
 
     def __repr__(self):
         if self.utt2ratio is None:
@@ -185,28 +195,44 @@ class SpeedPerturbationSox():
                 lower={self.lower},
                 upper={self.upper},
                 keep_length={self.keep_length},
-                sample_rate={self.sr})"""
+                batch_mode={self.batch_mode}
+                sample_rate={self.fs})"""
 
         else:
             return f"""{self.__class__.__name__}(
                 utt2ratio={self.utt2ratio_file},
-                sample_rate={self.sr})"""
+                sample_rate={self.fs})"""
+
+    def sample(self):
+        self.ratio = self.state.uniform(self.lower, self.upper)
+        logger.info(f"sp sample: {self.ratio}")
 
     def __call__(self, x, uttid=None, train=True):
         if not train:
             return x
-
+        
+        assert x.ndim == 1
+        
+        # x is PCM_16
+        if x.dtype in np.sctypes['int']:
+            # PCM16 -> PCM32
+            bits = np.iinfo(np.int16).bits
+            x = x / 2**(bits - 1)
         x = x.astype(numpy.float32)
+        
         if self.accept_uttid:
             ratio = self.utt2ratio[uttid]
         else:
-            ratio = self.state.uniform(self.lower, self.upper)
-
-        tfm = self.sox.Transformer()
+            ratio = self.ratio if self.batch_mode else self.state.uniform(self.lower, self.upper)
+        logger.info(f"sp: {ratio}")
+        
+        tfm = sox.Transformer()
         tfm.set_globals(multithread=False)
         tfm.speed(ratio)
-        y = tfm.build_array(input_array=x, sample_rate_in=self.sr)
-
+        y = tfm.build_array(input_array=x, sample_rate_in=self.fs)
+        # (T, C) -> (T)
+        y = y.squeeze(1)
+            
         if self.keep_length:
             diff = abs(len(x) - len(y))
             if len(y) > len(x):
@@ -219,10 +245,7 @@ class SpeedPerturbationSox():
                 ]
                 y = numpy.pad(
                     y, pad_width=pad_width, constant_values=0, mode="constant")
-
-        if y.ndim == 2 and x.ndim == 1:
-            # (T, C) -> (T)
-            y = y.sequence(1)
+        
         return y
 
 

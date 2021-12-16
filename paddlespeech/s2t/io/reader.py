@@ -68,7 +68,7 @@ class LoadInputsAndTargets():
         if mode not in ["asr"]:
             raise ValueError("Only asr are allowed: mode={}".format(mode))
 
-        if preprocess_conf is not None:
+        if preprocess_conf:
             self.preprocessing = Transformation(preprocess_conf)
             logger.warning(
                 "[Experimental feature] Some preprocessing will be done "

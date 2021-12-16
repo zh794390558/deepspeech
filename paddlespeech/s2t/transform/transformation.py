@@ -46,7 +46,8 @@ import_alias = dict(
     wpe="paddlespeech.s2t.transform.wpe:WPE",
     channel_selector="paddlespeech.s2t.transform.channel_selector:ChannelSelector",
     fbank_kaldi="paddlespeech.s2t.transform.spectrogram:LogMelSpectrogramKaldi",
-    cmvn_json="paddlespeech.s2t.transform.cmvn:GlobalCMVN")
+    cmvn_json="paddlespeech.s2t.transform.cmvn:GlobalCMVN",
+    speed_perturbation_sox="paddlespeech.s2t.transform.perturb:SpeedPerturbationSox")
 
 
 class Transformation():
@@ -135,6 +136,10 @@ class Transformation():
                     # Some function, e.g. built-in function, are failed
                     param = {}
                 _kwargs = {k: v for k, v in kwargs.items() if k in param}
+                
+                if hasattr(func, 'batch_mode') and func.batch_mode:
+                    func.sample()
+                    
                 try:
                     if uttid_list is not None and "uttid" in param:
                         xs = [
