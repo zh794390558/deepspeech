@@ -69,8 +69,7 @@ class U2Infer():
         with paddle.no_grad():
             # read
             audio, sample_rate = soundfile.read(
-                self.audio_file, dtype="int16", always_2d=True)
-
+               self.audio_file, dtype="int16", always_2d=True)
             audio = audio[:, 0]
             logger.info(f"audio shape: {audio.shape}")
 
@@ -78,11 +77,21 @@ class U2Infer():
             feat = self.preprocessing(audio, **self.preprocess_args)
             logger.info(f"feat shape: {feat.shape}")
 
-            np.savetxt("feat.transform.txt", feat)
+            # from paddle.jit.layer import Layer
+            # layer = Layer()
+            # paddle.set_device('cpu')
+            # layer.load('/workspace/DeepSpeech-2.x/examples/wenetspeech/asr1/export.jit', paddle.CPUPlace())
+            # audio = paddle.to_tensor(audio, paddle.int16)
+            # feat = layer.forward_feature(audio)[0]
+            # logger.info(f"feat: {feat} {feat.shape}")
+            #np.savetxt("feat.transform.txt", feat)
+            # feat = np.loadtxt("feat.tostatic.txt")
+            # logger.info("load feat from feat.tostatic.txt")
 
             ilen = paddle.to_tensor(feat.shape[0])
-            xs = paddle.to_tensor(feat, dtype='float32').unsqueeze(axis=0)
+            xs = feat.unsqueeze(axis=0)
             decode_config = self.config.decode
+            logger.debug(f"decode cfg: {decode_config}")
             result_transcripts = self.model.decode(
                 xs,
                 ilen,
@@ -95,7 +104,7 @@ class U2Infer():
                 simulate_streaming=decode_config.simulate_streaming)
             rsl = result_transcripts[0][0]
             utt = Path(self.audio_file).name
-            logger.info(f"hyp: {utt} {result_transcripts[0][0]}")
+            logger.debug(f"hyp: {utt} {result_transcripts[0][0]}")
             return rsl
 
 

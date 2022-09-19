@@ -334,6 +334,17 @@ class BaseEncoder(nn.Layer):
             (y, att_cache, cnn_cache) = self.forward_chunk(
                  chunk_xs, offset, required_cache_size, att_cache, cnn_cache)
 
+            # from paddle.jit.layer import Layer
+            # layer = Layer()
+            # layer.load('/workspace/DeepSpeech-2.x/examples/wenetspeech/asr1/export.jit', paddle.CPUPlace())
+            # logger.info(f"simulate_streaming: {stride} {chunk_xs.shape}")
+            # y, att_cache, cnn_cache = layer.forward_encoder_chunk(chunk_xs, paddle.to_tensor(offset, dtype=paddle.int32), att_cache, cnn_cache)
+            # # logger.info(f"encoder chunk out: {y} {att_cache} {cnn_cache}")
+            # # logger.info(f"encoder chunk out: {y}")
+
+            # import numpy as np
+            # np.savetxt(f'encoder{cur}', y.squeeze().numpy())
+
             outputs.append(y)
             offset += y.shape[1]
         ys = paddle.cat(outputs, 1)
