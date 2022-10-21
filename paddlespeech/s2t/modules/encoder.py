@@ -328,6 +328,14 @@ class BaseEncoder(nn.Layer):
             offset += y.shape[1]
         ys = paddle.cat(outputs, 1)
         masks = paddle.ones([1, 1, ys.shape[1]], dtype=paddle.bool)
+
+        logger.info(f"encoder output shape: {ys.shape}")
+        logger.info(f"call forward_chunk {len(outputs)} times")
+        logger.info(
+            f"first encoder out shape is {outputs[0].shape}, last is {outputs[-1].shape}"
+        )
+        import numpy as np
+        np.savetxt("encoder.out.txt", ys.numpy().reshape(-1))
         return ys, masks
 
 

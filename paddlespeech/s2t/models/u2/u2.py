@@ -428,6 +428,9 @@ class U2BaseModel(ASRInterface, nn.Layer):
         maxlen = encoder_out.shape[1]
         ctc_probs = self.ctc.log_softmax(encoder_out)  # (1, maxlen, vocab_size)
         ctc_probs = ctc_probs.squeeze(0)
+        logger.info(f"ctc_probs shape: {ctc_probs.shape}")
+        import numpy as np
+        np.savetxt("ctc_probs.txt", ctc_probs.numpy().reshape(-1))
 
         # cur_hyps: (prefix, (blank_ending_score, none_blank_ending_score))
         # blank_ending_score and  none_blank_ending_score in ln domain
@@ -560,7 +563,7 @@ class U2BaseModel(ASRInterface, nn.Layer):
             dtype=paddle.long)  # (beam_size,)
         hyps_pad, _ = add_sos_eos(hyps_pad, self.sos, self.eos, self.ignore_id)
         hyps_lens = hyps_lens + 1  # Add <sos> at begining
-        logger.debug(
+        logger.info(
             f"hyps pad: {hyps_pad} {self.sos} {self.eos} {self.ignore_id}")
 
         # ctc score in ln domain
@@ -573,6 +576,15 @@ class U2BaseModel(ASRInterface, nn.Layer):
         # conventional transformer decoder.
         r_decoder_out = r_decoder_out.numpy()
 
+        logger.info(f"encoder out shape: {encoder_out.shape}")
+        logger.info(f"decoder out shape: {decoder_out.shape}")
+        logger.info(f"rdecoder out shape: {r_decoder_out.shape}")
+        import numpy as np
+        np.savetxt("encoder.out.before.rescore.txt",
+                   encoder_out.numpy().reshape(-1))
+        np.savetxt("decoder.out.txt", decoder_out.reshape(-1))
+        np.savetxt("rdecoder.out.txt", r_decoder_out.reshape(-1))
+
         # Only use decoder score for rescoring
         best_score = -float('inf')
         best_index = 0
@@ -584,7 +596,7 @@ class U2BaseModel(ASRInterface, nn.Layer):
             # last decoder output token is `eos`, for laste decoder input token.
             score += decoder_out[i][len(hyp[0])][self.eos]
 
-            logger.debug(
+            logger.info(
                 f"hyp {i} len {len(hyp[0])} l2r score: {score} ctc_score: {hyp[1]} reverse_weight: {reverse_weight}"
             )
 
@@ -594,7 +606,7 @@ class U2BaseModel(ASRInterface, nn.Layer):
                     r_score += r_decoder_out[i][len(hyp[0]) - j - 1][w]
                 r_score += r_decoder_out[i][len(hyp[0])][self.eos]
 
-                logger.debug(
+                logger.info(
                     f"hyp {i} len {len(hyp[0])} r2l score: {r_score} ctc_score: {hyp[1]} reverse_weight: {reverse_weight}"
                 )
 
@@ -605,7 +617,7 @@ class U2BaseModel(ASRInterface, nn.Layer):
                 best_score = score
                 best_index = i
 
-        logger.debug(f"result: {hyps[best_index]}")
+        logger.info(f"result: {hyps[best_index]}")
         return hyps[best_index][0]
 
     @jit.to_static(property=True)
