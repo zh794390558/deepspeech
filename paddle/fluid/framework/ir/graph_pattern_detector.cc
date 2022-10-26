@@ -960,8 +960,14 @@ PDNode *patterns::OperatorActivation::operator()(
 
 PDNode *patterns::OperatorUnsqueeze2::operator()(
     const std::string &operator_type, const int num_of_operator_outs) {
+<<<<<<< HEAD
   auto *preceding_op =
       pattern->NewNode(preceding_op_repr())->assert_is_op(operator_type)->assert_has_n_outputs(num_of_operator_outs);
+=======
+  auto *preceding_op = pattern->NewNode(preceding_op_repr())
+                           ->assert_is_op(operator_type)
+                           ->assert_has_n_outputs(num_of_operator_outs);
+>>>>>>> origin/op_unsqueeze2_reshape2_fuses
   auto *preceding_op_out = pattern->NewNode(preceding_op_out_repr())
                                ->AsIntermediate()
                                ->assert_is_op_output(operator_type, "Out")
@@ -976,6 +982,28 @@ PDNode *patterns::OperatorUnsqueeze2::operator()(
   return unsqueeze2_out;
 }
 
+<<<<<<< HEAD
+=======
+PDNode *patterns::OperatorReshape2::operator()(const std::string &operator_type,
+                                               const int num_of_operator_outs) {
+  auto *preceding_op = pattern->NewNode(preceding_op_repr())
+                           ->assert_is_op(operator_type)
+                           ->assert_has_n_outputs(num_of_operator_outs);
+  auto *preceding_op_out = pattern->NewNode(preceding_op_out_repr())
+                               ->AsIntermediate()
+                               ->assert_is_op_output(operator_type, "Out")
+                               ->assert_is_op_input("reshape2");
+  auto *reshape2_op =
+      pattern->NewNode(reshape2_op_repr())->assert_is_op("reshape2");
+  auto *reshape2_out = pattern->NewNode(reshape2_out_repr())
+                           ->AsOutput()
+                           ->assert_is_op_output("reshape2");
+  preceding_op->LinksTo({preceding_op_out});
+  reshape2_op->LinksFrom({preceding_op_out}).LinksTo({reshape2_out});
+  return reshape2_out;
+}
+
+>>>>>>> origin/op_unsqueeze2_reshape2_fuses
 PDNode *patterns::SeqConvEltAddRelu::operator()(
     paddle::framework::ir::PDNode *seqconv_input) {
   // Create Operators
