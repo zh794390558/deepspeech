@@ -49,7 +49,7 @@ PaddleTensor DenseTensorToPaddleTensor(DenseTensor *t) {
 }
 
 bool PaddleTensorToDenseTensor(const PaddleTensor &pt,
-                               framework::LoDTensor *t,
+                               phi::DenseTensor *t,
                                const platform::Place &place) {
   framework::DDim ddim = phi::make_ddim(pt.shape);
   void *input_ptr;
@@ -151,7 +151,7 @@ class PredictorEngine : public BaseEngine {
     config.EnableMkldnnInt8();
     config.SwitchIrOptim(true);
     config.SetMkldnnCacheCapacity(0);
-    //config.EnableProfile();
+    config.EnableProfile();
     // config.SwitchIrDebug(true);
 
     predictor_.reset(new AnalysisPredictor(config));

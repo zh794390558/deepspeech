@@ -115,7 +115,7 @@ void ComputePropagateScalesMkldnnPass::ComputeVarScales(
       //         "The input persistable var [%s] of [%s] op is not found.",
       //         var_name,
       //         op_desc->Type()));
-      auto* weight_tensor = var->GetMutable<LoDTensor>();
+      auto* weight_tensor = var->GetMutable<phi::DenseTensor>();
       const auto dims = weight_tensor->dims();
       int volume = 1;
       for (int i = 1; i < dims.size(); i++) {

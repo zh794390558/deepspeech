@@ -27,13 +27,9 @@ class FuseOperatorUnsqueeze2OneDNNPass : public FusePassBase {
 
  protected:
   void ApplyImpl(Graph *graph) const override;
-<<<<<<< HEAD
-  void FuseUnsqueeze2(Graph *graph, const std::string &op_type, int num_of_outputs) const;
-=======
   void FuseUnsqueeze2(Graph *graph,
                       const std::string &op_type,
                       int num_of_outputs) const;
->>>>>>> origin/op_unsqueeze2_reshape2_fuses
 };
 
 }  // namespace ir
