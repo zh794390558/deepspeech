@@ -52,11 +52,9 @@ void FunctionSchema::AddOutputArg(const std::string& name) {
 
 FunctionInfo::FunctionInfo(const std::string& func_name,
                            const std::vector<std::string>& param_names,
-                           const framework::ProgramDesc& program_desc,
-                           const std::string& pdmodel_path)
+                           const framework::ProgramDesc& program_desc)
     : func_name_(func_name),
-      param_names_(param_names),
-      pdmodel_path_(pdmodel_path) {
+      param_names_(param_names) {
   program_desc_.reset(new framework::ProgramDesc(program_desc));
   // Parse FunctionSchema
   for (auto& in_name : program_desc_->GetFeedTargetNames()) {

@@ -60,8 +60,7 @@ class FunctionInfo {
  public:
   FunctionInfo(const std::string& func_name,
                const std::vector<std::string>& param_names,
-               const framework::ProgramDesc& program_desc,
-               const std::string& pdmodel_path);
+               const framework::ProgramDesc& program_desc);
 
   const std::string& FunctionName() const;
 
