@@ -264,6 +264,7 @@ CpuPassStrategy::CpuPassStrategy() : PassStrategy({}) {
   // NOTE the large fusions should be located in the front, so that they will
   // not be damaged by smaller ones.
   passes_.assign({"simplify_with_basic_ops_pass",  //
+                  "constant_folding_pass",
                   "layer_norm_fuse_pass",
                   "attention_lstm_fuse_pass",       //
                   "seqconv_eltadd_relu_fuse_pass",  //
@@ -292,7 +293,6 @@ CpuPassStrategy::CpuPassStrategy() : PassStrategy({}) {
                   "conv_transpose_bn_fuse_pass",             //
                   "conv_transpose_eltwiseadd_bn_fuse_pass",  //
                   "is_test_pass",                            //
-                  "constant_folding_pass",
                   // following pass should be located in the last, since
                   // it will work on all fused ops.
                   "runtime_context_cache_pass"});
@@ -387,6 +387,7 @@ void CpuPassStrategy::EnableMkldnnInt8() {
     passes_.clear();
     passes_.push_back("quant_dequant_mkldnn_pass");
     passes_.push_back("mkldnn_placement_pass");
+    passes_.push_back("constant_folding_pass");
     passes_.push_back("simplify_with_basic_ops_pass");
     passes_.push_back("layer_norm_fuse_pass");
     passes_.push_back("attention_lstm_fuse_pass");
@@ -404,7 +405,6 @@ void CpuPassStrategy::EnableMkldnnInt8() {
     passes_.push_back("matmul_v2_scale_fuse_pass");
     passes_.push_back("squared_mat_sub_fuse_pass");
     passes_.push_back("is_test_pass");
-    passes_.push_back("constant_folding_pass");
     passes_.push_back("gpu_cpu_map_matmul_v2_to_mul_pass");
     passes_.push_back("gpu_cpu_map_matmul_v2_to_matmul_pass");
     passes_.push_back("matmul_scale_fuse_pass");
