@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# CUDA_VISIBLE_DEVICES= ./local/export.sh conf/chunk_conformer_u2pp.yaml exp/chunk_conformer_u2pp/checkpoints/avg_10 ./expoort.jit
 if [ $# != 3 ];then
     echo "usage: $0 config_path ckpt_prefix jit_model_path"
     exit -1

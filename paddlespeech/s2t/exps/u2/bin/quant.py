@@ -14,12 +14,22 @@
 """Quantzation U2 model."""
 import paddle
 from kaldiio import ReadHelper
-from paddleslim import PTQ
+from paddle.quantization import PTQ
+from paddle.quantization import QuantConfig
+from paddleslim.quant.observers import AVGObserver
+from paddleslim.quant.observers import EMDObserver
+from paddleslim.quant.observers import HistObserver
+from paddleslim.quant.observers import KLObserver
+from paddleslim.quant.observers import MSEChannelWiseWeightObserver
+from paddleslim.quant.observers import MSEObserver
+from paddleslim.quant.observers.abs_max_weight import AbsMaxChannelWiseWeightObserver
+from paddleslim.quant.observers.uniform import UniformObserver
 from yacs.config import CfgNode
 
 from paddlespeech.audio.transform.transformation import Transformation
 from paddlespeech.s2t.frontend.featurizer.text_featurizer import TextFeaturizer
 from paddlespeech.s2t.models.u2 import U2Model
+from paddlespeech.s2t.modules import align
 from paddlespeech.s2t.training.cli import default_argument_parser
 from paddlespeech.s2t.utils.log import Log
 from paddlespeech.s2t.utils.utility import UpdateConfig
@@ -50,8 +60,53 @@ class U2Infer():
         model = U2Model.from_config(model_conf)
         self.model = model
         self.model.eval()
-        self.ptq = PTQ()
-        self.model = self.ptq.quantize(model)
+
+        # ptq
+        self.q_config = QuantConfig(activation=None, weight=None)
+
+        if args.act_bits == 32:
+            act_observer = None
+        elif args.act_abserver == 'avg':
+            act_observer = AVGObserver(quant_bits=args.act_bits)
+        elif args.act_abserver == 'hist':
+            act_observer = HistObserver(
+                percent=args.percent, quant_bits=args.act_bits)
+        elif args.act_abserver == 'mse':
+            act_observer = MSEObserver(quant_bits=args.act_bits)
+        elif args.act_abserver == 'kl':
+            act_observer = KLObserver(quant_bits=args.act_bits)
+        elif args.act_abserver == 'emd':
+            act_observer = EMDObserver(quant_bits=args.act_bits)
+        elif args.act_abserver == "uniform":
+            act_observer = UniformObserver(quant_bits=args.act_bits)
+        else:
+            raise ValueError('Unknown activation strategy: %s' %
+                             args.act_abserver)
+
+        if args.weight_bits == 32:
+            weight_observer = None
+        elif args.weight_abserver == 'mse':
+            weight_observer = MSEObserver(quant_bits=args.weight_bits)
+        elif args.weight_abserver == 'mse-channelwise':
+            weight_observer = MSEChannelWiseWeightObserver(
+                quant_bits=args.weight_bits)
+        elif args.weight_abserver == 'absmax-channelwise':
+            weight_observer = AbsMaxChannelWiseWeightObserver(
+                quant_bits=args.weight_bits)
+        else:
+            raise ValueError("Unknown weight strategy: %s" %
+                             args.weight_abserver)
+
+        print('act_observer', act_observer, 'weight_observer', weight_observer)
+        self.q_config.add_type_config(
+            [align.Linear, align.Conv2D],
+            activation=act_observer,
+            weight=weight_observer)
+        # self.q_config.add_qat_layer_mapping(align.Linear, paddle.nn.quant.quant_layers.QuantizedLinear)
+        # self.q_config.add_qat_layer_mapping(align.Conv2D, paddle.nn.quant.quant_layers.QuantizedConv2D)
+
+        self.ptq = PTQ(self.q_config)
+        self.model = self.ptq.quantize(model, inplace=False)
 
         # load model
         params_path = self.args.checkpoint_path + ".pdparams"
@@ -157,9 +212,11 @@ class U2Infer():
             self.model.forward_attention_decoder, input_spec=input_spec)
         ################################################################################
 
+        # convert to onnx quant format
+        self.ptq.convert(self.model, inplace=True)
+
         # jit save
         logger.info(f"export save: {self.args.export_path}")
-        self.ptq.ptq._convert(self.model)
         paddle.jit.save(
             self.model,
             self.args.export_path,
@@ -188,6 +245,29 @@ if __name__ == "__main__":
         type=str,
         default='export.jit.quant',
         help="path of the input audio file")
+    parser.add_argument(
+        "--act-bits", type=int, default=8, help="activation quant bits")
+    parser.add_argument(
+        "--act-abserver",
+        type=str,
+        default="emd",
+        choices=["emd", "avg", "hist", "mse", "kl", "uniform"],
+        help="activation abserver type")
+    parser.add_argument(
+        "--weight-bits", type=int, default=8, help="activation quant bits")
+    parser.add_argument(
+        "--weight-abserver",
+        type=str,
+        default="mse-channelwise",
+        choices=["mse-channelwise", "absmax-channelwise", "mse"],
+        help="weight abserver type")
+    # https://github.com/PaddlePaddle/PaddleSlim/blob/develop/paddleslim/quant/observers/hist.py
+    parser.add_argument(
+        "--hist-percent",
+        type=float,
+        default=0.999,
+        help="HistObserver: the percentage of bins that are retained when clipping the outliers"
+    )
     args = parser.parse_args()
 
     config = CfgNode(new_allowed=True)
