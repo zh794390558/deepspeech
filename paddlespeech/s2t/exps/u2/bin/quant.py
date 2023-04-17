@@ -58,8 +58,13 @@ class U2Infer():
             model_conf.input_dim = config.feat_dim
             model_conf.output_dim = self.text_feature.vocab_size
         model = U2Model.from_config(model_conf)
-        self.model = model
-        self.model.eval()
+
+        # load model
+        params_path = self.args.checkpoint_path + ".pdparams"
+        model_dict = paddle.load(params_path)
+        model.set_state_dict(model_dict)
+
+        model.eval()
 
         # ptq
         self.q_config = QuantConfig(activation=None, weight=None)
@@ -102,16 +107,9 @@ class U2Infer():
             [align.Linear, align.Conv2D],
             activation=act_observer,
             weight=weight_observer)
-        # self.q_config.add_qat_layer_mapping(align.Linear, paddle.nn.quant.quant_layers.QuantizedLinear)
-        # self.q_config.add_qat_layer_mapping(align.Conv2D, paddle.nn.quant.quant_layers.QuantizedConv2D)
 
         self.ptq = PTQ(self.q_config)
         self.model = self.ptq.quantize(model, inplace=False)
-
-        # load model
-        params_path = self.args.checkpoint_path + ".pdparams"
-        model_dict = paddle.load(params_path)
-        self.model.set_state_dict(model_dict)
 
     def run(self):
         cnt = 0
@@ -151,6 +149,9 @@ class U2Infer():
                     # print(self.model)
                     # print(self.model.forward_encoder_chunk)
 
+        # convert to onnx quant format
+        self.ptq.convert(self.model, inplace=True)
+
         logger.info("-------------start quant ----------------------")
         batch_size = 1
         feat_dim = 80
@@ -161,6 +162,7 @@ class U2Infer():
             f"U2 Export Model Params: batch_size {batch_size}, feat_dim {feat_dim}, model_size {model_size}, num_left_chunks {num_left_chunks}, reverse_weight {reverse_weight}"
         )
 
+        # Jit
         # ######################## self.model.forward_encoder_chunk ############
         # input_spec = [
         #     # (T,), int16
@@ -211,9 +213,6 @@ class U2Infer():
         self.model.forward_attention_decoder = paddle.jit.to_static(
             self.model.forward_attention_decoder, input_spec=input_spec)
         ################################################################################
-
-        # convert to onnx quant format
-        self.ptq.convert(self.model, inplace=True)
 
         # jit save
         logger.info(f"export save: {self.args.export_path}")
